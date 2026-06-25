@@ -53,14 +53,17 @@ class BlendedPolynomialSurface:
         num_coeffs = polynomial.num_coeffs(self.degree)
 
         if coefficients is None:
+            # If no coefficients are given, initialize to zeros for degree 0...
             self.coefficients = torch.zeros((self.num_vertices, 3, num_coeffs)).float()
             if self.degree >= 1:
-                # Initialize patches to xy planes.
+                # ...or xy planes for degree at least 1.
                 self.coefficients[:, 0, 1] = 1
                 self.coefficients[:, 1, 2] = 1
         elif coefficients.shape == (3, num_coeffs):
+            # If coefficients are given for a single vertex, use them for all vertices.
             self.coefficients = torch.stack([coefficients] * self.num_vertices).float()
         elif coefficients.shape == (self.num_vertices, 3, num_coeffs):
+            # If coefficients are given for all vertices, use them all.
             self.coefficients = coefficients.float()
         else:
             raise ValueError(
