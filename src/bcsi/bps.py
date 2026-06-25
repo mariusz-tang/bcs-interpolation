@@ -34,8 +34,20 @@ class BlendedPolynomialSurface:
         (x,y) -> (x,y,0) if `degree` is at least 1.
         """
         self.proxy_mesh = proxy_mesh
-        self.num_vertices = len(proxy_mesh.vertices)
-        self.num_triangles = len(proxy_mesh.triangles)
+
+        # Convert key mesh properties to tensors for later reuse.
+        self.triangles = torch.tensor(np.asarray(proxy_mesh.triangles))
+        self.vertices = torch.tensor(np.asarray(proxy_mesh.vertices))
+        if not proxy_mesh.has_vertex_normals():
+            proxy_mesh.compute_vertex_normals()
+        self.vertex_normals = torch.tensor(np.asarray(proxy_mesh.vertex_normals))
+
+        # Ensure adjacency list is available.
+        if not self.proxy_mesh.has_adjacency_list():
+            self.proxy_mesh.compute_adjacency_list()
+
+        self.num_vertices = self.vertices.shape[0]
+        self.num_triangles = self.triangles.shape[0]
 
         self.degree = degree
         num_coeffs = polynomial.num_coeffs(self.degree)
@@ -75,10 +87,6 @@ class BlendedPolynomialSurface:
 
         Shape: (num_vertices)
         """
-        # Convert to tensors so we can do fancy indexing.
-        vertices = torch.as_tensor(np.asarray(self.proxy_mesh.vertices))
-        faces = torch.as_tensor(np.asarray(self.proxy_mesh.triangles))
-
         # Accumulate edge lengths and counts.
         edge_lengths = torch.zeros(self.num_vertices)
         edge_counts = torch.zeros(self.num_vertices)
@@ -88,11 +96,13 @@ class BlendedPolynomialSurface:
             # Find the next vertex.
             j = (i + 1) % 3
 
-            vi = faces[:, i]
-            vj = faces[:, j]
+            vi = self.triangles[:, i]
+            vj = self.triangles[:, j]
 
             # Calculate the edge length.
-            length = torch.linalg.norm(vertices[vi] - vertices[vj], dim=1).float()
+            length = torch.linalg.norm(
+                self.vertices[vi] - self.vertices[vj], dim=1
+            ).float()
 
             # Update the accumulators.
             edge_lengths.index_add_(0, vi, length)
@@ -114,24 +124,15 @@ class BlendedPolynomialSurface:
 
         Shape: (num_vertices, 3, 3)
         """
-        if not self.proxy_mesh.has_adjacency_list():
-            self.proxy_mesh.compute_adjacency_list()
-
-        if not self.proxy_mesh.has_vertex_normals():
-            self.proxy_mesh.compute_vertex_normals()
-
-        normals = torch.tensor(np.asarray(self.proxy_mesh.vertex_normals))
-        vertices = torch.as_tensor(np.asarray(self.proxy_mesh.vertices))
-
         rotations = torch.zeros((self.num_vertices, 3, 3))
 
         for vertex_id in range(self.num_vertices):
-            vertex = vertices[vertex_id]
-            normal = normals[vertex_id]
+            vertex = self.vertices[vertex_id]
+            normal = self.vertex_normals[vertex_id]
 
             # Select the neighbour with the lowest id.
             neighbour_id = min(self.proxy_mesh.adjacency_list[vertex_id])
-            neighbour = vertices[neighbour_id]
+            neighbour = self.vertices[neighbour_id]
 
             # Project the edge onto the tangent plane and normalize to a direction.
             neighbour_direction = neighbour - vertex
@@ -173,7 +174,7 @@ class BlendedPolynomialSurface:
         rotation_matrix = self.vertex_rotations[vertex_id]
 
         result_rotated = torch.einsum("ij,pj->pi", rotation_matrix, result_local)
-        vertex = torch.tensor(np.asarray(self.proxy_mesh.vertices[vertex_id]))
+        vertex = self.vertices[vertex_id]
         scale = self.vertex_scales[vertex_id]
 
         return (scale * result_rotated + vertex).float()
@@ -222,10 +223,6 @@ class BlendedPolynomialSurface:
         Implemented in this way because the methods for computing these values
         are very closely related.
         """
-        if not self.proxy_mesh.has_adjacency_list():
-            self.proxy_mesh.compute_adjacency_list()
-
-        triangles = torch.tensor(np.asarray(self.proxy_mesh.triangles))
         onering_indices = torch.zeros((self.num_triangles, 3))
         onering_flips = torch.zeros_like(onering_indices)
         halfedge_mesh = o3d.geometry.HalfEdgeTriangleMesh.create_from_triangle_mesh(
@@ -259,7 +256,7 @@ class BlendedPolynomialSurface:
                 halfedge = halfedge_mesh.half_edges[halfedge_id]
                 triangle_id = halfedge.triangle_index
                 # Find the index of the current vertex in the current triangle.
-                triangle_vertices = list(triangles[triangle_id])
+                triangle_vertices = list(self.triangles[triangle_id])
                 tri_vert_id = triangle_vertices.index(vertex_id)
 
                 # Assign the current index to the triangle.
@@ -279,9 +276,6 @@ class BlendedPolynomialSurface:
     @cached_property
     def _valences(self) -> torch.Tensor:
         """Valence of each vertex in the proxy mesh."""
-        if not self.proxy_mesh.has_adjacency_list():
-            self.proxy_mesh.compute_adjacency_list()
-
         return torch.tensor(list(map(len, self.proxy_mesh.adjacency_list)))
 
     def get_onering_coordinates(
@@ -308,8 +302,6 @@ class BlendedPolynomialSurface:
 
         radii = triangle.distances(vertices)
 
-        triangles = torch.tensor(np.asarray(self.proxy_mesh.triangles))
-
         local_angles = triangle.angles(vertices)
         oriented_angles = local_angles.where(
             self.triangle_onering_flips[triangle_id] == 1,
@@ -318,7 +310,9 @@ class BlendedPolynomialSurface:
         angles_before_flattening = (
             oriented_angles + torch.pi / 3 * self.triangle_onering_indices[triangle_id]
         )
-        angles = angles_before_flattening / self._valences[triangles[triangle_id]] * 6
+        angles = (
+            angles_before_flattening / self._valences[self.triangles[triangle_id]] * 6
+        )
 
         return torch.stack([radii, angles], dim=-1)
 
@@ -348,8 +342,7 @@ class BlendedPolynomialSurface:
         y = r * torch.sin(theta)
         basis = polynomial.basis(x, y, self.degree).float()
 
-        triangles = torch.tensor(np.asarray(self.proxy_mesh.triangles))
-        origin_vertex_ids = triangles[triangle_id]
+        origin_vertex_ids = self.triangles[triangle_id]
 
         # The einsum indices represent:
         # p: perspective (vertex at the centre of one-ring)
@@ -363,9 +356,7 @@ class BlendedPolynomialSurface:
         rotation_matrix = self.vertex_rotations[origin_vertex_ids]
 
         result_rotated = torch.einsum("pij,vpj->pvi", rotation_matrix, result_local)
-        origin_vertices = torch.tensor(np.asarray(self.proxy_mesh.vertices))[
-            origin_vertex_ids
-        ]
+        origin_vertices = self.vertices[origin_vertex_ids]
         scale = self.vertex_scales[origin_vertex_ids]
 
         return (
