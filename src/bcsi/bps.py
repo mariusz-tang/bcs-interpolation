@@ -1,5 +1,6 @@
 """Defines the blended polynomial chart surface class."""
 
+import logging
 from functools import cached_property
 
 import numpy as np
@@ -7,6 +8,8 @@ import open3d as o3d
 import torch
 
 from bcsi import polynomial, triangle
+
+logger = logging.getLogger(__name__)
 
 
 class BlendedPolynomialSurface:
@@ -33,6 +36,7 @@ class BlendedPolynomialSurface:
         (num_vertices, 3, num_coeffs). By default, each patch function is set to
         (x,y) -> (x,y,0) if `degree` is at least 1.
         """
+        logger.info("BPS initialization start")
         self.proxy_mesh = proxy_mesh
 
         # Convert key mesh properties to tensors for later reuse.
@@ -77,6 +81,7 @@ class BlendedPolynomialSurface:
         if not 0 < beta < 1:
             raise ValueError(f"expected beta in range (0,1), received: {beta}")
         self.beta = beta
+        logger.info("BPS initialization end")
 
     @cached_property
     def vertex_scales(self) -> torch.Tensor:
@@ -90,6 +95,7 @@ class BlendedPolynomialSurface:
 
         Shape: (num_vertices)
         """
+        logger.info("vertex_scales begin")
         # Accumulate edge lengths and counts.
         edge_lengths = torch.zeros(self.num_vertices)
         edge_counts = torch.zeros(self.num_vertices)
@@ -115,6 +121,7 @@ class BlendedPolynomialSurface:
 
         mean_edge_length = edge_lengths / edge_counts
 
+        logger.info("vertex_scales end")
         return mean_edge_length * self.global_scale
 
     @cached_property
@@ -127,6 +134,7 @@ class BlendedPolynomialSurface:
 
         Shape: (num_vertices, 3, 3)
         """
+        logger.info("vertex_rotations begin")
         rotations = torch.zeros((self.num_vertices, 3, 3))
 
         for vertex_id in range(self.num_vertices):
@@ -147,6 +155,7 @@ class BlendedPolynomialSurface:
             rotations[vertex_id, :, 1] = torch.linalg.cross(normal, neighbour_direction)
             rotations[vertex_id, :, 2] = normal
 
+        logger.info("vertex_rotations end")
         return rotations
 
     def evaluate_patch(self, vertex_id: int, coordinates: torch.Tensor) -> torch.Tensor:
@@ -226,6 +235,7 @@ class BlendedPolynomialSurface:
         Implemented in this way because the methods for computing these values
         are very closely related.
         """
+        logger.info("onerings begin")
         onering_indices = torch.zeros((self.num_triangles, 3))
         onering_flips = torch.zeros_like(onering_indices)
         halfedge_mesh = o3d.geometry.HalfEdgeTriangleMesh.create_from_triangle_mesh(
@@ -274,6 +284,7 @@ class BlendedPolynomialSurface:
                 else:
                     onering_flips[triangle_id, tri_vert_id] = -1
 
+        logger.info("onerings end")
         return onering_indices, onering_flips
 
     @cached_property
@@ -384,6 +395,7 @@ class BlendedPolynomialSurface:
         (num_vertices, 3). The last coordinate corresponds to the 3D cartesian
         coordinates of the output.
         """
+        logger.info(f"blended patch vertices for triangle {triangle_id}")
         unblended_coords = self.get_unblended_patch_vertices(triangle_id, vertices)
         blend_coefficients = triangle.blend_coefficients(vertices, self.beta).float()
         return torch.einsum("pvd,vp->vd", unblended_coords, blend_coefficients)
