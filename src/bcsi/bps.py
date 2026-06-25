@@ -58,6 +58,9 @@ class BlendedPolynomialSurface:
             )
 
         self.global_scale = scale
+
+        if not 0 < beta < 1:
+            raise ValueError(f"expected beta in range (0,1), received: {beta}")
         self.beta = beta
 
     @cached_property

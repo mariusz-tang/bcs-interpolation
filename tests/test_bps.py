@@ -99,10 +99,20 @@ def test_constructor_global_scale(
     assert surface.global_scale == scale
 
 
-@pytest.mark.parametrize("beta", torch.linspace(0, 1, 10))
+@pytest.mark.parametrize("beta", torch.linspace(0.01, 0.99, 10))
 def test_constructor_beta(cube_mesh: o3d.geometry.TriangleMesh, beta: float) -> None:
     surface = bps.BlendedPolynomialSurface(cube_mesh, 2, beta=beta)
     assert surface.beta == beta
+
+
+@pytest.mark.parametrize("beta", [-1, 0, 1, 2])
+def test_beta_out_of_range_0_to_1_raises(
+    cube_mesh: o3d.geometry.TriangleMesh, beta: float
+) -> None:
+    with pytest.raises(
+        ValueError, match=rf"expected beta in range \(0,1\), received: {beta}"
+    ):
+        bps.BlendedPolynomialSurface(cube_mesh, degree=2, beta=beta)
 
 
 @pytest.fixture
