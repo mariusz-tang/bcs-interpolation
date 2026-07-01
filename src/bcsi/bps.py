@@ -88,7 +88,8 @@ class BlendedPolynomialSurface:
         """Local scale factor at each vertex.
 
         The local scale at a vertex is proportional to the mean length of the
-        edges incident to that vertex.
+        edges incident to that vertex, capped from above at twice the minimum
+        such edge length.
 
         Note that the calculation is incorrect for boundary vertices because it
         assumes that every edge is connected to two faces.
@@ -99,6 +100,7 @@ class BlendedPolynomialSurface:
         # Accumulate edge lengths and counts.
         edge_lengths = torch.zeros(self.num_vertices)
         edge_counts = torch.zeros(self.num_vertices)
+        min_edge_lengths = torch.ones_like(edge_lengths) * torch.inf
 
         # For each vertex of a face.
         for i in range(3):
@@ -113,6 +115,18 @@ class BlendedPolynomialSurface:
                 self.vertices[vi] - self.vertices[vj], dim=1
             ).float()
 
+            # Calculate minima, taking into account duplicated vertex ids.
+            ids = vi.unique()
+            sieve = ids[:, None] == vi[None, :]
+            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
+            min_edge_lengths[ids] = min_edge_lengths[ids].where(
+                min_edge_lengths[ids] < min_lengths, min_lengths
+            )
+            ids = vj.unique()
+            sieve = ids[:, None] == vj[None, :]
+            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
+            min_edge_lengths[ids] = torch.minimum(min_edge_lengths[ids], min_lengths)
+
             # Update the accumulators.
             edge_lengths.index_add_(0, vi, length)
             edge_lengths.index_add_(0, vj, length)
@@ -121,8 +135,10 @@ class BlendedPolynomialSurface:
 
         mean_edge_length = edge_lengths / edge_counts
 
+        local_scales = torch.minimum(mean_edge_length, 2 * min_edge_lengths)
+
         logger.info("vertex_scales end")
-        return mean_edge_length * self.global_scale
+        return local_scales * self.global_scale
 
     @cached_property
     def vertex_rotations(self) -> torch.Tensor:
