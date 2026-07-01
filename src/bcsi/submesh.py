@@ -4,6 +4,8 @@ import numpy as np
 import open3d as o3d
 import torch
 
+from bcsi import bps
+
 
 def find_vertex_indices(
     submesh: o3d.geometry.TriangleMesh, parent: o3d.geometry.TriangleMesh
@@ -33,3 +35,45 @@ def find_vertex_indices(
         )
 
     return result
+
+
+def create_bps_degree_one(
+    submesh: o3d.geometry.TriangleMesh, parent: o3d.geometry.TriangleMesh
+) -> bps.BlendedPolynomialSurface:
+    """Create a BPS using `submesh` as the proxy with information from `parent`.
+
+    The patch functions are unit planes whose normals are determined by the
+    normals at each vertex of `submesh` in `parent`.
+    """
+    vert_indices = find_vertex_indices(submesh, parent)
+    base_surface = bps.BlendedPolynomialSurface(submesh, degree=1)
+
+    if not parent.has_vertex_normals():
+        parent.compute_vertex_normals()
+
+    parent_normals = torch.tensor(np.asarray(parent.vertex_normals))
+
+    # Map parent vertex normals to child patch function space.
+    normals = torch.einsum(
+        "vij,vj->vi",
+        torch.inverse(base_surface.vertex_rotations).double(),
+        parent_normals[vert_indices],
+    )
+
+    # Project x-direction onto normal plane.
+    e_1 = torch.tensor([1, 0, 0])
+    e_1_projected = e_1 - normals[:, 0:1] * normals
+    e_1_normalized = e_1_projected / torch.linalg.vector_norm(
+        e_1_projected, dim=1, keepdim=True
+    )
+
+    # Calculate y-direction by cross product.
+    e_2 = torch.linalg.cross(normals, e_1_normalized)
+
+    # Create coefficients matrix.
+    coefficients = torch.zeros_like(base_surface.coefficients)
+    coefficients[..., 1] = e_1_normalized
+    coefficients[..., 2] = e_2
+
+    # Create BPS with the new coefficients.
+    return bps.BlendedPolynomialSurface(submesh, degree=1, coefficients=coefficients)

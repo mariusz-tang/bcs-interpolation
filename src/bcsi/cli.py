@@ -12,46 +12,62 @@ def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Blended chart surface interpolation utility",
     )
-    parser.add_argument("mesh_path", help="path to proxy mesh file", type=pathlib.Path)
-    parser.add_argument(
+    subparsers = parser.add_subparsers()
+
+    create_bps = subparsers.add_parser("create-bps")
+    create_bps.add_argument(
+        "mesh_path", help="path to proxy mesh file", type=pathlib.Path
+    )
+    create_bps.add_argument(
         "--degree",
         default=2,
         help="degree of polynomials to use to represent the surface",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--scale",
         default=0.5,
         help="global scale to use for blended chart surfaces (default: 0.5)",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--beta",
         default=0.73,
         help="beta ('blending overlap') to use for blended chart surfaces "
         "(default: 0.73)",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--resolution",
         default=3,
         help="resolution with which to render blended chart surfaces (default: 3)",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--color",
         action=argparse.BooleanOptionalAction,
         default=False,
         help="if set, color each mapped 'face' differently (default: false)",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--output-name",
         default="result",
         help="name to give the output mesh, which will be saved as a .obj file "
         "in ./output (default: 'result')",
     )
-    parser.add_argument(
+    create_bps.add_argument(
         "--visualize",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="whether or not to show the rendered mesh (default: true)",
     )
+    create_bps.set_defaults(func=_initialize_bps)
+
+    submesh_bps = subparsers.add_parser("submesh-bps")
+    submesh_bps.add_argument(
+        "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
+    )
+    submesh_bps.add_argument(
+        "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
+    )
+    submesh_bps.set_defaults(func=_submesh_bps)
+
     return parser
 
 
@@ -67,7 +83,10 @@ def main() -> None:
     parser = get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+    args.func(args)
 
+
+def _initialize_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
     import open3d as o3d
 
@@ -86,6 +105,33 @@ def main() -> None:
         o3d.visualization.draw_geometries([surface_rendered])
     o3d.io.write_triangle_mesh(
         get_output_dir() / f"{args.output_name}.obj",
+        surface_rendered,
+        write_ascii=True,
+        write_vertex_normals=False,
+        write_vertex_colors=False,
+        write_triangle_uvs=False,
+        print_progress=True,
+    )
+
+
+def _submesh_bps(args: argparse.Namespace) -> None:
+    import open3d as o3d
+
+    from bcsi import render, submesh
+
+    child = o3d.io.read_triangle_mesh(args.submesh_path)
+    parent = o3d.io.read_triangle_mesh(args.parent_mesh_path)
+
+    surface = submesh.create_bps_degree_one(child, parent)
+    surface_rendered = render.blended_polynomial_surface(
+        surface, 3, color_patches=False
+    )
+    surface_rendered.compute_vertex_normals()
+
+    # if args.visualize:
+    #     o3d.visualization.draw_geometries([surface_rendered])
+    o3d.io.write_triangle_mesh(
+        get_output_dir() / "result-submesh.obj",
         surface_rendered,
         write_ascii=True,
         write_vertex_normals=False,
