@@ -37,15 +37,36 @@ def find_vertex_indices(
     return result
 
 
+def new_frame(
+    submesh: o3d.geometry.TriangleMesh,
+    vertex_indices: torch.Tensor,
+    parent: o3d.geometry.TriangleMesh,
+) -> o3d.geometry.TriangleMesh:
+    """Return a new mesh obtained by posing `submesh` according to `parent`.
+
+    :param vertex_indices: Vertex correspondences between `submesh` and `parent`,
+    as defined in `find_vertex_indices`.
+    """
+    parent_vertices = torch.tensor(np.asarray(parent.vertices))
+    new_vertices = parent_vertices[vertex_indices]
+    return o3d.geometry.TriangleMesh(
+        o3d.utility.Vector3dVector(new_vertices.numpy()), submesh.triangles
+    )
+
+
 def create_bps_degree_one(
-    submesh: o3d.geometry.TriangleMesh, parent: o3d.geometry.TriangleMesh
+    submesh: o3d.geometry.TriangleMesh,
+    parent: o3d.geometry.TriangleMesh,
+    vertex_indices: torch.Tensor,
 ) -> bps.BlendedPolynomialSurface:
     """Create a BPS using `submesh` as the proxy with information from `parent`.
 
     The patch functions are unit planes whose normals are determined by the
     normals at each vertex of `submesh` in `parent`.
+
+    :param vertex_indices: Vertex correspondences between `submesh` and `parent`,
+    as defined in `find_vertex_indices`.
     """
-    vert_indices = find_vertex_indices(submesh, parent)
     base_surface = bps.BlendedPolynomialSurface(submesh, degree=1)
 
     if not parent.has_vertex_normals():
@@ -57,7 +78,7 @@ def create_bps_degree_one(
     normals = torch.einsum(
         "vij,vj->vi",
         torch.inverse(base_surface.vertex_rotations).double(),
-        parent_normals[vert_indices],
+        parent_normals[vertex_indices],
     )
 
     # Project x-direction onto normal plane.

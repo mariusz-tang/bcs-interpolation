@@ -68,6 +68,21 @@ def get_parser() -> argparse.ArgumentParser:
     )
     submesh_bps.set_defaults(func=_submesh_bps)
 
+    create_submesh_frames = subparsers.add_parser("create-submesh-frames")
+    create_submesh_frames.add_argument(
+        "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
+    )
+    create_submesh_frames.add_argument(
+        "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
+    )
+    create_submesh_frames.add_argument(
+        "frame_paths",
+        help="path(s) to new poses of the parent mesh to create frames from",
+        nargs="+",
+        type=pathlib.Path,
+    )
+    create_submesh_frames.set_defaults(func=_create_submesh_frames)
+
     return parser
 
 
@@ -122,14 +137,13 @@ def _submesh_bps(args: argparse.Namespace) -> None:
     child = o3d.io.read_triangle_mesh(args.submesh_path)
     parent = o3d.io.read_triangle_mesh(args.parent_mesh_path)
 
-    surface = submesh.create_bps_degree_one(child, parent)
+    vertex_indices = submesh.find_vertex_indices(child, parent)
+    surface = submesh.create_bps_degree_one(child, parent, vertex_indices)
     surface_rendered = render.blended_polynomial_surface(
         surface, 3, color_patches=False
     )
     surface_rendered.compute_vertex_normals()
 
-    # if args.visualize:
-    #     o3d.visualization.draw_geometries([surface_rendered])
     o3d.io.write_triangle_mesh(
         get_output_dir() / "result-submesh.obj",
         surface_rendered,
@@ -139,6 +153,45 @@ def _submesh_bps(args: argparse.Namespace) -> None:
         write_triangle_uvs=False,
         print_progress=True,
     )
+
+
+def _create_submesh_frames(args: argparse.Namespace) -> None:
+    import open3d as o3d
+
+    from bcsi import render, submesh
+
+    child = o3d.io.read_triangle_mesh(args.submesh_path)
+    parent = o3d.io.read_triangle_mesh(args.parent_mesh_path)
+    vertex_indices = submesh.find_vertex_indices(child, parent)
+
+    for i, frame_path in enumerate(args.frame_paths):
+        frame_parent = o3d.io.read_triangle_mesh(frame_path)
+        frame_submesh = submesh.new_frame(child, vertex_indices, frame_parent)
+
+        o3d.io.write_triangle_mesh(
+            get_output_dir() / f"result-frame-{i}.obj",
+            frame_submesh,
+            write_ascii=True,
+            write_vertex_normals=False,
+            write_vertex_colors=False,
+            write_triangle_uvs=False,
+            print_progress=True,
+        )
+
+        frame_bps = submesh.create_bps_degree_one(
+            frame_submesh, frame_parent, vertex_indices
+        )
+        frame_bps_rendered = render.blended_polynomial_surface(frame_bps, resolution=3)
+        frame_bps_rendered.compute_vertex_normals()
+        o3d.io.write_triangle_mesh(
+            get_output_dir() / f"result-frame-bps-{i}.obj",
+            frame_bps_rendered,
+            write_ascii=True,
+            write_vertex_normals=False,
+            write_vertex_colors=False,
+            write_triangle_uvs=False,
+            print_progress=True,
+        )
 
 
 if __name__ == "__main__":
