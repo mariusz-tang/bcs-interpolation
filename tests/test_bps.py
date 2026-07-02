@@ -1,44 +1,33 @@
 import math
 import pathlib
 
-import open3d as o3d
 import pytest
 import torch
 
-from bcsi import bps
+from bcsi import bps, mesh
 
 TEST_DATA_DIR = pathlib.Path(__file__).parent / "data"
 CUBE_PATH = TEST_DATA_DIR / "cube.obj"
 
 
 @pytest.fixture
-def cube_mesh() -> o3d.geometry.TriangleMesh:
-    return o3d.io.read_triangle_mesh(CUBE_PATH)
+def cube_mesh() -> mesh.TriangleMesh:
+    return mesh.read_from_file(CUBE_PATH)
 
 
-def test_constructor_proxy_mesh(cube_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_constructor_proxy_mesh(cube_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(cube_mesh, 0)
-    assert surface.proxy_mesh == cube_mesh
-
-
-def test_constructor_num_vertices(cube_mesh: o3d.geometry.TriangleMesh) -> None:
-    surface = bps.BlendedPolynomialSurface(cube_mesh, 0)
-    assert surface.num_vertices == 8
-
-
-def test_constructor_num_triangles(cube_mesh: o3d.geometry.TriangleMesh) -> None:
-    surface = bps.BlendedPolynomialSurface(cube_mesh, 0)
-    assert surface.num_triangles == 12
+    assert surface.proxy == cube_mesh
 
 
 @pytest.mark.parametrize("degree", range(5))
-def test_constructor_degree(cube_mesh: o3d.geometry.TriangleMesh, degree: int) -> None:
+def test_constructor_degree(cube_mesh: mesh.TriangleMesh, degree: int) -> None:
     surface = bps.BlendedPolynomialSurface(cube_mesh, degree)
     assert surface.degree == degree
 
 
 def test_constructor_degree_negative_raises(
-    cube_mesh: o3d.geometry.TriangleMesh,
+    cube_mesh: mesh.TriangleMesh,
 ) -> None:
     with pytest.raises(ValueError, match="degree cannot be negative"):
         bps.BlendedPolynomialSurface(cube_mesh, -1)
@@ -58,7 +47,7 @@ def test_constructor_degree_negative_raises(
     ],
 )
 def test_constructor_coefficients_default(
-    cube_mesh: o3d.geometry.TriangleMesh,
+    cube_mesh: mesh.TriangleMesh,
     degree: int,
     expected_coefficients: torch.Tensor,
 ) -> None:
@@ -67,7 +56,7 @@ def test_constructor_coefficients_default(
 
 
 def test_constructor_coefficients_single_vertex(
-    cube_mesh: o3d.geometry.TriangleMesh,
+    cube_mesh: mesh.TriangleMesh,
 ) -> None:
     coeffs_single = torch.tensor([[1, 1, 0], [0, 1, 1], [0, 1, 1]])
     coeffs_all = torch.tensor([[[1, 1, 0], [0, 1, 1], [0, 1, 1]]] * 8)
@@ -76,7 +65,7 @@ def test_constructor_coefficients_single_vertex(
 
 
 def test_constructor_coefficients_all(
-    cube_mesh: o3d.geometry.TriangleMesh,
+    cube_mesh: mesh.TriangleMesh,
 ) -> None:
     coefficients = torch.tensor([[[1, 1, 0], [0, 1, 1], [0, 1, 1]]] * 8)
     surface = bps.BlendedPolynomialSurface(cube_mesh, 1, coefficients=coefficients)
@@ -84,7 +73,7 @@ def test_constructor_coefficients_all(
 
 
 def test_constructor_coefficients_invalid_shape_raises(
-    cube_mesh: o3d.geometry.TriangleMesh,
+    cube_mesh: mesh.TriangleMesh,
 ) -> None:
     coefficients = torch.tensor([[[1, 1, 0], [0, 1, 1], [0, 1, 1]]] * 7)
     with pytest.raises(ValueError, match="invalid shape for coefficients"):
@@ -92,22 +81,20 @@ def test_constructor_coefficients_invalid_shape_raises(
 
 
 @pytest.mark.parametrize("scale", torch.linspace(0, 1, 10))
-def test_constructor_global_scale(
-    cube_mesh: o3d.geometry.TriangleMesh, scale: float
-) -> None:
+def test_constructor_global_scale(cube_mesh: mesh.TriangleMesh, scale: float) -> None:
     surface = bps.BlendedPolynomialSurface(cube_mesh, 2, scale=scale)
     assert surface.global_scale == scale
 
 
 @pytest.mark.parametrize("beta", torch.linspace(0.01, 0.99, 10))
-def test_constructor_beta(cube_mesh: o3d.geometry.TriangleMesh, beta: float) -> None:
+def test_constructor_beta(cube_mesh: mesh.TriangleMesh, beta: float) -> None:
     surface = bps.BlendedPolynomialSurface(cube_mesh, 2, beta=beta)
     assert surface.beta == beta
 
 
 @pytest.mark.parametrize("beta", [-1, 0, 1, 2])
 def test_beta_out_of_range_0_to_1_raises(
-    cube_mesh: o3d.geometry.TriangleMesh, beta: float
+    cube_mesh: mesh.TriangleMesh, beta: float
 ) -> None:
     with pytest.raises(
         ValueError, match=rf"expected beta in range \(0,1\), received: {beta}"
@@ -116,14 +103,14 @@ def test_beta_out_of_range_0_to_1_raises(
 
 
 @pytest.fixture
-def pyramid_mesh() -> o3d.geometry.TriangleMesh:
+def pyramid_mesh() -> mesh.TriangleMesh:
     # We use this fixture to test the model against a small set of manually
     # calculated values. This approach has already caught at least one bug :)
 
     # We define this inline because we need control of the vertex and face
     # ordering, and open3d does not preserve these when reading from a file.
     # For convenience, this mesh is also available at tests/data/pyramid.obj.
-    vertices = o3d.utility.Vector3dVector(
+    vertices = torch.tensor(
         [
             [0, 0, 0],
             [1, 0, 0],
@@ -132,7 +119,7 @@ def pyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 0, 1],
         ]
     )
-    triangles = o3d.utility.Vector3iVector(
+    triangles = torch.tensor(
         [
             [0, 2, 1],
             [0, 3, 2],
@@ -142,13 +129,11 @@ def pyramid_mesh() -> o3d.geometry.TriangleMesh:
             [2, 3, 4],
         ]
     )
-    return o3d.geometry.TriangleMesh(vertices, triangles)
+    return mesh.from_tensors(vertices, triangles)
 
 
 @pytest.mark.parametrize("scale_global", torch.linspace(0, 1, 10))
-def test_vertex_scales(
-    pyramid_mesh: o3d.geometry.TriangleMesh, scale_global: float
-) -> None:
+def test_vertex_scales(pyramid_mesh: mesh.TriangleMesh, scale_global: float) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 2, scale=scale_global)
     expected_scales = (
         torch.tensor(
@@ -171,7 +156,7 @@ def test_vertex_scales(
 def test_vertex_scales_capped_to_minimum_edge_length(scale_global: float) -> None:
     # Local scale should be limited to twice the length of the shortest edge
     # from each vertex.
-    vertices = o3d.utility.Vector3dVector(
+    vertices = torch.tensor(
         [
             [0, 0, 0],
             [1, 0, 0],
@@ -180,7 +165,7 @@ def test_vertex_scales_capped_to_minimum_edge_length(scale_global: float) -> Non
             [0, 0, 0.1],
         ]
     )
-    triangles = o3d.utility.Vector3iVector(
+    triangles = torch.tensor(
         [
             [0, 2, 1],
             [0, 3, 2],
@@ -190,14 +175,14 @@ def test_vertex_scales_capped_to_minimum_edge_length(scale_global: float) -> Non
             [2, 3, 4],
         ]
     )
-    compressed_pyramid_mesh = o3d.geometry.TriangleMesh(vertices, triangles)
+    compressed_pyramid_mesh = mesh.from_tensors(vertices, triangles)
     surface = bps.BlendedPolynomialSurface(
         compressed_pyramid_mesh, 2, scale=scale_global
     )
     assert surface.vertex_scales[0] == 2 * 0.1 * scale_global
 
 
-def test_vertex_rotations(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_vertex_rotations(pyramid_mesh: mesh.TriangleMesh) -> None:
     # This test assumes that vertex normals are calculated by taking an
     # unweighted average of the adjacent face normals.
     # The selected neighbour vertex is vertex 1 (0-indexed) at (1,0,0).
@@ -259,7 +244,7 @@ def test_vertex_rotations(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
     ],
 )
 def test_evaluate_patch(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
     degree: int,
     coefficients: torch.Tensor | None,
     vertex_id: int,
@@ -276,7 +261,7 @@ def test_evaluate_patch(
 
 @pytest.mark.parametrize("vertex_id", [-6, 5])
 def test_evaluate_patch_invalid_vertex_id_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh, vertex_id: int
+    pyramid_mesh: mesh.TriangleMesh, vertex_id: int
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match=f"vertex_id {vertex_id} out of range"):
@@ -284,14 +269,14 @@ def test_evaluate_patch_invalid_vertex_id_raises(
 
 
 def test_evaluate_patch_coordinates_wrong_shape_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="invalid shape for coordinates"):
         surface.evaluate_patch(0, torch.tensor([[0]]))
 
 
-def test_triangle_onering_indices(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_triangle_onering_indices(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     assert torch.equal(
         surface.triangle_onering_indices,
@@ -301,7 +286,7 @@ def test_triangle_onering_indices(pyramid_mesh: o3d.geometry.TriangleMesh) -> No
     )
 
 
-def test_triangle_onering_flips(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_triangle_onering_flips(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     assert torch.all(surface.triangle_onering_flips == 1)
 
@@ -346,7 +331,7 @@ def test_triangle_onering_flips(pyramid_mesh: o3d.geometry.TriangleMesh) -> None
     ],
 )
 def test_get_onering_coordinates(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
     triangle_id: int,
     vertices: torch.Tensor,
     expected_output: torch.Tensor,
@@ -358,7 +343,7 @@ def test_get_onering_coordinates(
 
 
 def test_get_onering_coordinates_wrong_input_shape_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
@@ -367,14 +352,14 @@ def test_get_onering_coordinates_wrong_input_shape_raises(
 
 @pytest.mark.parametrize("triangle_id", [-7, 6])
 def test_get_onering_coordinates_triangle_id_out_of_range_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh, triangle_id: int
+    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):
         surface.get_onering_coordinates(triangle_id, torch.tensor([[1, 1]]))
 
 
-def test_get_unblended_patch_vertices(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_get_unblended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     result = surface.get_unblended_patch_vertices(0, torch.tensor([[0, 0], [1, 0]]))
     assert result.shape == (3, 2, 3)
@@ -385,7 +370,7 @@ def test_get_unblended_patch_vertices(pyramid_mesh: o3d.geometry.TriangleMesh) -
 
 
 def test_get_unblended_patch_vertices_wrong_input_shape_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
@@ -394,14 +379,14 @@ def test_get_unblended_patch_vertices_wrong_input_shape_raises(
 
 @pytest.mark.parametrize("triangle_id", [-7, 6])
 def test_get_unblended_patch_vertices_triangle_id_out_of_range_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh, triangle_id: int
+    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):
         surface.get_unblended_patch_vertices(triangle_id, torch.tensor([[1, 1]]))
 
 
-def test_get_blended_patch_vertices(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
+def test_get_blended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     result = surface.get_blended_patch_vertices(
         0, torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]])
@@ -413,7 +398,7 @@ def test_get_blended_patch_vertices(pyramid_mesh: o3d.geometry.TriangleMesh) -> 
 
 
 def test_get_blended_patch_vertices_wrong_input_shape_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
@@ -422,7 +407,7 @@ def test_get_blended_patch_vertices_wrong_input_shape_raises(
 
 @pytest.mark.parametrize("triangle_id", [-7, 6])
 def test_get_blended_patch_vertices_triangle_id_out_of_range_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh, triangle_id: int
+    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):

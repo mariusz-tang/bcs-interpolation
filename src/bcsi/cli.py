@@ -7,6 +7,8 @@ import pathlib
 
 import argcomplete
 
+from bcsi import mesh
+
 
 def get_parser() -> argparse.ArgumentParser:
     """Create the BCSI argument parser."""
@@ -114,90 +116,55 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
     from bcsi import bps, render
 
-    mesh = o3d.io.read_triangle_mesh(args.mesh_path)
-    surface = bps.BlendedPolynomialSurface(
-        mesh, args.degree, args.scale, beta=args.beta
-    )
+    m = mesh.read_from_file(args.mesh_path)
+    surface = bps.BlendedPolynomialSurface(m, args.degree, args.scale, beta=args.beta)
     surface_rendered = render.blended_polynomial_surface(
         surface, args.resolution, color_patches=args.color
     )
-    surface_rendered.compute_vertex_normals()
+    surface_rendered.open3d.compute_vertex_normals()
 
     if args.visualize:
-        o3d.visualization.draw_geometries([surface_rendered])
-    o3d.io.write_triangle_mesh(
-        get_output_dir() / f"{args.output_name}.obj",
-        surface_rendered,
-        write_ascii=True,
-        write_vertex_normals=False,
-        write_vertex_colors=False,
-        write_triangle_uvs=False,
-        print_progress=True,
-    )
+        o3d.visualization.draw_geometries([surface_rendered.open3d])
+    mesh.write_to_file(get_output_dir() / f"{args.output_name}.obj", surface_rendered)
 
 
 def _submesh_bps(args: argparse.Namespace) -> None:
-    import open3d as o3d
 
     from bcsi import render, submesh
 
-    child = o3d.io.read_triangle_mesh(args.submesh_path)
-    parent = o3d.io.read_triangle_mesh(args.parent_mesh_path)
+    child = mesh.read_from_file(args.submesh_path)
+    parent = mesh.read_from_file(args.parent_mesh_path)
 
     corresondences = submesh.find_vertex_correspondences(child, parent)
     surface = submesh.create_bps_degree_one(child, parent, corresondences)
     surface_rendered = render.blended_polynomial_surface(
         surface, 3, color_patches=False
     )
-    surface_rendered.compute_vertex_normals()
+    surface_rendered.open3d.compute_vertex_normals()
 
-    o3d.io.write_triangle_mesh(
-        get_output_dir() / "result-submesh.obj",
-        surface_rendered,
-        write_ascii=True,
-        write_vertex_normals=False,
-        write_vertex_colors=False,
-        write_triangle_uvs=False,
-        print_progress=True,
-    )
+    mesh.write_to_file(get_output_dir() / "result-submesh.obj", surface_rendered)
 
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
-    import open3d as o3d
-
     from bcsi import render, submesh
 
-    child = o3d.io.read_triangle_mesh(args.submesh_path)
-    parent = o3d.io.read_triangle_mesh(args.parent_mesh_path)
+    child = mesh.read_from_file(args.submesh_path)
+    parent = mesh.read_from_file(args.parent_mesh_path)
     correspondences = submesh.find_vertex_correspondences(child, parent)
 
     for i, frame_path in enumerate(args.frame_paths):
-        frame_parent = o3d.io.read_triangle_mesh(frame_path)
+        frame_parent = mesh.read_from_file(frame_path)
         frame_submesh = submesh.new_frame(child, correspondences, frame_parent)
 
-        o3d.io.write_triangle_mesh(
-            get_output_dir() / f"result-frame-{i}.obj",
-            frame_submesh,
-            write_ascii=True,
-            write_vertex_normals=False,
-            write_vertex_colors=False,
-            write_triangle_uvs=False,
-            print_progress=True,
-        )
+        mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_submesh)
 
         frame_bps = submesh.create_bps_degree_one(
             frame_submesh, frame_parent, correspondences
         )
         frame_bps_rendered = render.blended_polynomial_surface(frame_bps, resolution=3)
-        frame_bps_rendered.compute_vertex_normals()
-        o3d.io.write_triangle_mesh(
-            get_output_dir() / f"result-frame-bps-{i}.obj",
-            frame_bps_rendered,
-            write_ascii=True,
-            write_vertex_normals=False,
-            write_vertex_colors=False,
-            write_triangle_uvs=False,
-            print_progress=True,
+        frame_bps_rendered.open3d.compute_vertex_normals()
+        mesh.write_to_file(
+            get_output_dir() / f"result-frame-bps-{i}.obj", frame_bps_rendered
         )
 
 

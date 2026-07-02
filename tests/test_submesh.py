@@ -1,17 +1,16 @@
-import open3d as o3d
 import pytest
 import torch
 
-from bcsi import submesh
+from bcsi import mesh, submesh
 
 
 # We define the following meshes inline because we need control of the vertex
 # ordering, and open3d does not preserve these when reading from a file.
 @pytest.fixture
-def pyramid_mesh() -> o3d.geometry.TriangleMesh:
+def pyramid_mesh() -> mesh.TriangleMesh:
     # This may be duplicated with another fixture test_bps.py because they are
     # used for completely unrelated functionality and shouldn't be coupled.
-    vertices = o3d.utility.Vector3dVector(
+    vertices = torch.tensor(
         [
             [0, 0, 0],
             [1, 0, 0],
@@ -20,7 +19,7 @@ def pyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 0, 1],
         ]
     )
-    triangles = o3d.utility.Vector3iVector(
+    triangles = torch.tensor(
         [
             [0, 2, 1],
             [0, 3, 2],
@@ -30,12 +29,12 @@ def pyramid_mesh() -> o3d.geometry.TriangleMesh:
             [2, 3, 4],
         ]
     )
-    return o3d.geometry.TriangleMesh(vertices, triangles)
+    return mesh.from_tensors(vertices, triangles)
 
 
 @pytest.fixture
-def subpyramid_mesh() -> o3d.geometry.TriangleMesh:
-    vertices = o3d.utility.Vector3dVector(
+def subpyramid_mesh() -> mesh.TriangleMesh:
+    vertices = torch.tensor(
         [
             [1, 0, 0],
             [0, 0, 0],
@@ -43,7 +42,7 @@ def subpyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 0, 1],
         ]
     )
-    triangles = o3d.utility.Vector3iVector(
+    triangles = torch.tensor(
         [
             [1, 4, 3],
             [1, 3, 0],
@@ -51,13 +50,13 @@ def subpyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 3, 4],
         ]
     )
-    return o3d.geometry.TriangleMesh(vertices, triangles)
+    return mesh.from_tensors(vertices, triangles)
 
 
 @pytest.fixture
-def dirty_subpyramid_mesh() -> o3d.geometry.TriangleMesh:
+def dirty_subpyramid_mesh() -> mesh.TriangleMesh:
     # This one has an extra vertex not present in the parent.
-    vertices = o3d.utility.Vector3dVector(
+    vertices = torch.tensor(
         [
             [1, 0, 0],
             [0, 0, 0],
@@ -66,7 +65,7 @@ def dirty_subpyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 0, 2],
         ]
     )
-    triangles = o3d.utility.Vector3iVector(
+    triangles = torch.tensor(
         [
             [1, 4, 3],
             [1, 3, 0],
@@ -74,11 +73,11 @@ def dirty_subpyramid_mesh() -> o3d.geometry.TriangleMesh:
             [0, 3, 4],
         ]
     )
-    return o3d.geometry.TriangleMesh(vertices, triangles)
+    return mesh.from_tensors(vertices, triangles)
 
 
 def test_find_vertex_correspondences(
-    pyramid_mesh: o3d.geometry.TriangleMesh, subpyramid_mesh: o3d.geometry.TriangleMesh
+    pyramid_mesh: mesh.TriangleMesh, subpyramid_mesh: mesh.TriangleMesh
 ) -> None:
     result = submesh.find_vertex_correspondences(
         child=subpyramid_mesh, parent=pyramid_mesh
@@ -87,8 +86,8 @@ def test_find_vertex_correspondences(
 
 
 def test_find_vertex_correspondences_not_all_vertices_found_raises(
-    pyramid_mesh: o3d.geometry.TriangleMesh,
-    dirty_subpyramid_mesh: o3d.geometry.TriangleMesh,
+    pyramid_mesh: mesh.TriangleMesh,
+    dirty_subpyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     with pytest.raises(ValueError, match="unable to find all vertices"):
         submesh.find_vertex_correspondences(
