@@ -77,16 +77,20 @@ def dirty_subpyramid_mesh() -> o3d.geometry.TriangleMesh:
     return o3d.geometry.TriangleMesh(vertices, triangles)
 
 
-def test_find_vertex_indices(
+def test_find_vertex_correspondences(
     pyramid_mesh: o3d.geometry.TriangleMesh, subpyramid_mesh: o3d.geometry.TriangleMesh
 ) -> None:
-    result = submesh.find_vertex_indices(submesh=subpyramid_mesh, parent=pyramid_mesh)
+    result = submesh.find_vertex_correspondences(
+        child=subpyramid_mesh, parent=pyramid_mesh
+    )
     assert torch.equal(result, torch.tensor([1, 0, 3, 4]))
 
 
-def test_find_vertex_indices_not_all_vertices_found_raises(
+def test_find_vertex_correspondences_not_all_vertices_found_raises(
     pyramid_mesh: o3d.geometry.TriangleMesh,
     dirty_subpyramid_mesh: o3d.geometry.TriangleMesh,
 ) -> None:
     with pytest.raises(ValueError, match="unable to find all vertices"):
-        submesh.find_vertex_indices(submesh=dirty_subpyramid_mesh, parent=pyramid_mesh)
+        submesh.find_vertex_correspondences(
+            child=dirty_subpyramid_mesh, parent=pyramid_mesh
+        )
