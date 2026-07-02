@@ -167,6 +167,36 @@ def test_vertex_scales(
     assert torch.allclose(surface.vertex_scales, expected_scales)
 
 
+@pytest.mark.parametrize("scale_global", torch.linspace(0, 1, 10))
+def test_vertex_scales_capped_to_minimum_edge_length(scale_global: float) -> None:
+    # Local scale should be limited to twice the length of the shortest edge
+    # from each vertex.
+    vertices = o3d.utility.Vector3dVector(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 0.1],
+        ]
+    )
+    triangles = o3d.utility.Vector3iVector(
+        [
+            [0, 2, 1],
+            [0, 3, 2],
+            [0, 1, 4],
+            [0, 4, 3],
+            [1, 2, 4],
+            [2, 3, 4],
+        ]
+    )
+    compressed_pyramid_mesh = o3d.geometry.TriangleMesh(vertices, triangles)
+    surface = bps.BlendedPolynomialSurface(
+        compressed_pyramid_mesh, 2, scale=scale_global
+    )
+    assert surface.vertex_scales[0] == 2 * 0.1 * scale_global
+
+
 def test_vertex_rotations(pyramid_mesh: o3d.geometry.TriangleMesh) -> None:
     # This test assumes that vertex normals are calculated by taking an
     # unweighted average of the adjacent face normals.
