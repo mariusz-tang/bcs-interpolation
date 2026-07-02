@@ -88,8 +88,8 @@ class BlendedPolynomialSurface:
         """Local scale factor at each vertex.
 
         The local scale at a vertex is proportional to the mean length of the
-        edges incident to that vertex, capped from above at twice the minimum
-        such edge length.
+        edges incident to that vertex, capped from above at twice the length of
+        the shortest incident edge.
 
         Note that the calculation is incorrect for boundary vertices because it
         assumes that every edge is connected to two faces.
