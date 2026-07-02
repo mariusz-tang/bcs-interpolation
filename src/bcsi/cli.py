@@ -2,6 +2,7 @@
 """Command-line interface for BCSI."""
 
 import argparse
+import logging
 import pathlib
 
 import argcomplete
@@ -98,6 +99,12 @@ def main() -> None:
     parser = get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    logging.basicConfig(
+        filename="logs/log",
+        format="%(asctime)s: %(levelname)s: %(message)s",
+        level=logging.INFO,
+    )
     args.func(args)
 
 
