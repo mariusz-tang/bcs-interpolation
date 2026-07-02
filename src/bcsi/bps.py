@@ -109,29 +109,29 @@ class BlendedPolynomialSurface:
 
             vi = self.triangles[:, i]
             vj = self.triangles[:, j]
+            ids = torch.cat([vi, vj])
 
-            # Calculate the edge length.
-            length = torch.linalg.norm(
-                self.vertices[vi] - self.vertices[vj], dim=1
-            ).float()
-
-            # Calculate minima, taking into account duplicated vertex ids.
-            ids = vi.unique()
-            sieve = ids[:, None] == vi[None, :]
-            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
-            min_edge_lengths[ids] = min_edge_lengths[ids].where(
-                min_edge_lengths[ids] < min_lengths, min_lengths
+            # Calculate the edge length. We repeat the tensor to match the
+            # full list of indexes `ids`.
+            length = (
+                torch.linalg.norm(self.vertices[vi] - self.vertices[vj], dim=1)
+                .float()
+                .repeat(2)
             )
-            ids = vj.unique()
-            sieve = ids[:, None] == vj[None, :]
-            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
-            min_edge_lengths[ids] = torch.minimum(min_edge_lengths[ids], min_lengths)
 
             # Update the accumulators.
-            edge_lengths.index_add_(0, vi, length)
-            edge_lengths.index_add_(0, vj, length)
-            edge_counts.index_add_(0, vi, torch.ones_like(length))
-            edge_counts.index_add_(0, vj, torch.ones_like(length))
+            edge_lengths.index_add_(0, ids, length)
+            edge_counts.index_add_(0, ids, torch.ones_like(length))
+
+            # For minima there is no easy method like `index_add_` so we
+            # construct a 'sieve', replacing irrelevant values with infinity,
+            # where we can then take the mininum as usual.
+            uids = ids.unique()
+            sieve = uids[:, None] == ids[None, :]
+            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
+            min_edge_lengths[uids] = min_edge_lengths[uids].where(
+                min_edge_lengths[uids] < min_lengths, min_lengths
+            )
 
         mean_edge_length = edge_lengths / edge_counts
 
