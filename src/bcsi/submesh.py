@@ -79,8 +79,9 @@ def create_bps_degree_one(
 
     # Map parent vertex normals to child patch function space.
     normals = torch.einsum(
-        "vij,vj->vi",
-        torch.inverse(base_surface.vertex_rotations).double(),
+        # Multiply by the transpose instead of explicitly calculating inverse rotations.
+        "vji,vj->vi",
+        base_surface.vertex_rotations.double(),
         parent_normals[correspondences],
     )
 
