@@ -55,6 +55,9 @@ def create_bps_degree_one(
     child: mesh.TriangleMesh,
     parent: mesh.TriangleMesh,
     correspondences: torch.Tensor,
+    degree: int,
+    scale: float,
+    beta: float,
 ) -> bps.BlendedPolynomialSurface:
     """Create a BPS using `child` as the proxy with information from `parent`.
 
@@ -64,7 +67,7 @@ def create_bps_degree_one(
     :param correspondences: Vertex correspondences between `child` and `parent`,
     as defined in `find_vertex_correspondences`.
     """
-    base_surface = bps.BlendedPolynomialSurface(child, degree=1)
+    base_surface = bps.BlendedPolynomialSurface(child, degree, scale, beta=beta)
 
     # Map parent vertex normals to child patch function space.
     normals = torch.einsum(

@@ -7,40 +7,40 @@ import pathlib
 
 import argcomplete
 
-from bcsi import mesh
-
 
 def get_parser() -> argparse.ArgumentParser:
     """Create the BCSI argument parser."""
-    parser = argparse.ArgumentParser(
-        description="Blended chart surface interpolation utility",
-    )
-    subparsers = parser.add_subparsers()
-
-    create_bps = subparsers.add_parser("create-bps")
-    create_bps.add_argument(
-        "mesh_path", help="path to proxy mesh file", type=pathlib.Path
-    )
-    create_bps.add_argument(
+    bps_parser = argparse.ArgumentParser(add_help=False)
+    bps_parser.add_argument(
         "--degree",
-        default=2,
+        default=1,
         help="degree of polynomials to use to represent the surface",
     )
-    create_bps.add_argument(
+    bps_parser.add_argument(
         "--scale",
         default=0.5,
         help="global scale to use for blended chart surfaces (default: 0.5)",
     )
-    create_bps.add_argument(
+    bps_parser.add_argument(
         "--beta",
         default=0.73,
         help="beta ('blending overlap') to use for blended chart surfaces "
         "(default: 0.73)",
     )
-    create_bps.add_argument(
+    bps_parser.add_argument(
         "--resolution",
         default=3,
         help="resolution with which to render blended chart surfaces (default: 3)",
+    )
+
+    parser = argparse.ArgumentParser(
+        description="Blended chart surface interpolation utility",
+    )
+    subparsers = parser.add_subparsers()
+
+    create_bps = subparsers.add_parser("create-bps", parents=[bps_parser])
+    create_bps.add_argument(
+        "mesh_path", help="path to proxy mesh file", type=pathlib.Path
     )
     create_bps.add_argument(
         "--color",
@@ -62,7 +62,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
     create_bps.set_defaults(func=_initialize_bps)
 
-    submesh_bps = subparsers.add_parser("submesh-bps")
+    submesh_bps = subparsers.add_parser("submesh-bps", parents=[bps_parser])
     submesh_bps.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
     )
@@ -71,7 +71,9 @@ def get_parser() -> argparse.ArgumentParser:
     )
     submesh_bps.set_defaults(func=_submesh_bps)
 
-    create_submesh_frames = subparsers.add_parser("create-submesh-frames")
+    create_submesh_frames = subparsers.add_parser(
+        "create-submesh-frames", parents=[bps_parser]
+    )
     create_submesh_frames.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
     )
@@ -114,7 +116,7 @@ def _initialize_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
     import open3d as o3d
 
-    from bcsi import bps, render
+    from bcsi import bps, mesh, render
 
     m = mesh.read_from_file(args.mesh_path)
     surface = bps.BlendedPolynomialSurface(m, args.degree, args.scale, beta=args.beta)
@@ -129,16 +131,18 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
 
 def _submesh_bps(args: argparse.Namespace) -> None:
-
-    from bcsi import render, submesh
+    # Defer heavy imports.
+    from bcsi import mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
 
     corresondences = submesh.find_vertex_correspondences(child, parent)
-    surface = submesh.create_bps_degree_one(child, parent, corresondences)
+    surface = submesh.create_bps_degree_one(
+        child, parent, corresondences, args.degree, args.scale, args.beta
+    )
     surface_rendered = render.blended_polynomial_surface(
-        surface, 3, color_patches=False
+        surface, args.resolution, color_patches=False
     )
     surface_rendered.open3d.compute_vertex_normals()
 
@@ -146,7 +150,8 @@ def _submesh_bps(args: argparse.Namespace) -> None:
 
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
-    from bcsi import render, submesh
+    # Defer heavy imports.
+    from bcsi import mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
@@ -159,9 +164,16 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_submesh)
 
         frame_bps = submesh.create_bps_degree_one(
-            frame_submesh, frame_parent, correspondences
+            frame_submesh,
+            frame_parent,
+            correspondences,
+            args.degree,
+            args.scale,
+            args.beta,
         )
-        frame_bps_rendered = render.blended_polynomial_surface(frame_bps, resolution=3)
+        frame_bps_rendered = render.blended_polynomial_surface(
+            frame_bps, resolution=args.resolution
+        )
         frame_bps_rendered.open3d.compute_vertex_normals()
         mesh.write_to_file(
             get_output_dir() / f"result-frame-bps-{i}.obj", frame_bps_rendered
