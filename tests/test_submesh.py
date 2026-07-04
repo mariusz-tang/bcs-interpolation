@@ -76,20 +76,16 @@ def dirty_subpyramid_mesh() -> mesh.TriangleMesh:
     return mesh.from_tensors(vertices, triangles)
 
 
-def test_find_vertex_correspondences(
+def test_pair_vertex_correspondences(
     pyramid_mesh: mesh.TriangleMesh, subpyramid_mesh: mesh.TriangleMesh
 ) -> None:
-    result = submesh.find_vertex_correspondences(
-        child=subpyramid_mesh, parent=pyramid_mesh
-    )
+    result = submesh.Pair(subpyramid_mesh, pyramid_mesh).vertex_correspondences
     assert torch.equal(result, torch.tensor([1, 0, 3, 4]))
 
 
-def test_find_vertex_correspondences_not_all_vertices_found_raises(
+def test_pair_vertex_correspondences_not_all_vertices_found_raises(
     pyramid_mesh: mesh.TriangleMesh,
     dirty_subpyramid_mesh: mesh.TriangleMesh,
 ) -> None:
     with pytest.raises(ValueError, match="unable to find all vertices"):
-        submesh.find_vertex_correspondences(
-            child=dirty_subpyramid_mesh, parent=pyramid_mesh
-        )
+        _ = submesh.Pair(dirty_subpyramid_mesh, pyramid_mesh).vertex_correspondences

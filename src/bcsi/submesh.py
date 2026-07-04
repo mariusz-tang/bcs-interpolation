@@ -3,78 +3,85 @@
 We refer to the submeshes as 'children' and the original meshes as 'parents'.
 """
 
+from functools import cached_property
+
 import torch
 
 from bcsi import bps, mesh
 
 
-def find_vertex_correspondences(
-    child: mesh.TriangleMesh, parent: mesh.TriangleMesh
-) -> torch.Tensor:
-    """Calculate indices of vertices found in `child` relative to `parent`.
+class Pair:
+    """Represents a parent-child submesh pair."""
 
-    Returns a (num_vertices,) shape tensor where the `i`th entry represents
-    the index of the `i`th vertex in `child`, in the vertex list of `parent`.
-    """
-    num_parent_verts = parent.vertices.shape[0]
+    def __init__(self, child: mesh.TriangleMesh, parent: mesh.TriangleMesh) -> None:
+        """Initialize a parent-child pair.
 
-    # Repeat the sub-vertices so we can compare them against ALL vertices in
-    # the parent by broadcasting.
-    matches = (
-        child.vertices.repeat(num_parent_verts, 1, 1)
-        .transpose(0, 1)
-        .isclose(parent.vertices)
-    )
-    matches_complete_vertex = matches.all(dim=2)
+        `child` should be a mesh whose set of vertices is a subset of `parent`'s.
+        """
+        self.child = child
+        self.parent = parent
 
-    result = matches_complete_vertex.argwhere()[:, 1]
+    @cached_property
+    def vertex_correspondences(self) -> torch.Tensor:
+        """Calculate indices of vertices found in `child` relative to `parent`.
 
-    if result.shape[0] != child.vertices.shape[0]:
-        raise ValueError(
-            f"unable to find all vertices from {child.vertices} in {parent.vertices}"
+        Returns a (num_vertices,) shape tensor where the `i`th entry represents
+        the index of the `i`th vertex in `child`, in the vertex list of `parent`.
+        """
+        num_parent_verts = self.parent.vertices.shape[0]
+
+        # Repeat the sub-vertices so we can compare them against ALL vertices in
+        # the parent by broadcasting.
+        matches = (
+            self.child.vertices.repeat(num_parent_verts, 1, 1)
+            .transpose(0, 1)
+            .isclose(self.parent.vertices)
         )
+        matches_complete_vertex = matches.all(dim=2)
 
-    return result
+        result = matches_complete_vertex.argwhere()[:, 1]
+
+        if result.shape[0] != self.child.vertices.shape[0]:
+            raise ValueError(
+                f"unable to find all vertices from {self.child.vertices} in "
+                f"{self.parent.vertices}"
+            )
+
+        return result
 
 
 def new_frame(
-    child: mesh.TriangleMesh,
-    correspondences: torch.Tensor,
-    parent: mesh.TriangleMesh,
-) -> mesh.TriangleMesh:
-    """Return a new mesh obtained by posing `child` according to `parent`.
-
-    :param correspondences: Vertex correspondences between `child` and `parent`,
-    as defined in `find_vertex_correspondences`.
-    """
-    new_vertices = parent.vertices[correspondences]
-    return mesh.from_tensors(new_vertices, child.triangles)
+    pair: Pair,
+    new_parent: mesh.TriangleMesh,
+) -> Pair:
+    """Return a new mesh obtained by posing a child mesh according to a new parent."""
+    new_vertices = new_parent.vertices[pair.vertex_correspondences]
+    new_child = mesh.from_tensors(new_vertices, pair.child.triangles)
+    new_pair = Pair(new_child, new_parent)
+    # Transfer vertex correspondences since they will be the same.
+    new_pair.vertex_correspondences = pair.vertex_correspondences
+    return new_pair
 
 
 def create_bps_degree_one(
-    child: mesh.TriangleMesh,
-    parent: mesh.TriangleMesh,
-    correspondences: torch.Tensor,
+    pair: Pair,
     degree: int,
     scale: float,
     beta: float,
 ) -> bps.BlendedPolynomialSurface:
-    """Create a BPS using `child` as the proxy with information from `parent`.
+    """Create a BPS from the child of a submesh pair using data from the parent.
 
     The patch functions are unit planes whose normals are determined by the
-    normals at each vertex of `child` in `parent`.
-
-    :param correspondences: Vertex correspondences between `child` and `parent`,
-    as defined in `find_vertex_correspondences`.
+    normals at each vertex of the child in the parent.
     """
-    base_surface = bps.BlendedPolynomialSurface(child, degree, scale, beta=beta)
+    base_surface = bps.BlendedPolynomialSurface(pair.child, degree, scale, beta=beta)
 
     # Map parent vertex normals to child patch function space.
     normals = torch.einsum(
         # Multiply by the transpose instead of explicitly calculating inverse rotations.
         "vji,vj->vi",
         base_surface.vertex_rotations.double(),
-        parent.vertex_normals[correspondences],
+        pair.parent.vertex_normals[pair.vertex_correspondences],
     )
 
     # Project x-direction onto normal plane.
@@ -93,4 +100,4 @@ def create_bps_degree_one(
     coefficients[..., 2] = e_2
 
     # Create BPS with the new coefficients.
-    return bps.BlendedPolynomialSurface(child, degree=1, coefficients=coefficients)
+    return bps.BlendedPolynomialSurface(pair.child, degree=1, coefficients=coefficients)

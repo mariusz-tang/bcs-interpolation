@@ -136,11 +136,9 @@ def _submesh_bps(args: argparse.Namespace) -> None:
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
+    pair = submesh.Pair(child, parent)
 
-    corresondences = submesh.find_vertex_correspondences(child, parent)
-    surface = submesh.create_bps_degree_one(
-        child, parent, corresondences, args.degree, args.scale, args.beta
-    )
+    surface = submesh.create_bps_degree_one(pair, args.degree, args.scale, args.beta)
     surface_rendered = render.blended_polynomial_surface(
         surface, args.resolution, color_patches=False
     )
@@ -155,21 +153,16 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
-    correspondences = submesh.find_vertex_correspondences(child, parent)
+    pair = submesh.Pair(child, parent)
 
     for i, frame_path in enumerate(args.frame_paths):
         frame_parent = mesh.read_from_file(frame_path)
-        frame_submesh = submesh.new_frame(child, correspondences, frame_parent)
+        frame_pair = submesh.new_frame(pair, frame_parent)
 
-        mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_submesh)
+        mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_pair.child)
 
         frame_bps = submesh.create_bps_degree_one(
-            frame_submesh,
-            frame_parent,
-            correspondences,
-            args.degree,
-            args.scale,
-            args.beta,
+            frame_pair, args.degree, args.scale, args.beta
         )
         frame_bps_rendered = render.blended_polynomial_surface(
             frame_bps, resolution=args.resolution
