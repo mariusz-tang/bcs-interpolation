@@ -43,12 +43,6 @@ def get_parser() -> argparse.ArgumentParser:
         "mesh_path", help="path to proxy mesh file", type=pathlib.Path
     )
     create_bps.add_argument(
-        "--color",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="if set, color each mapped 'face' differently (default: false)",
-    )
-    create_bps.add_argument(
         "--output-name",
         default="result",
         help="name to give the output mesh, which will be saved as a .obj file "
@@ -120,9 +114,7 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
     m = mesh.read_from_file(args.mesh_path)
     surface = bps.BlendedPolynomialSurface(m, args.degree, args.scale, beta=args.beta)
-    surface_rendered = render.blended_polynomial_surface(
-        surface, args.resolution, color_patches=args.color
-    )
+    surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
     if args.visualize:
@@ -139,9 +131,7 @@ def _submesh_bps(args: argparse.Namespace) -> None:
     pair = submesh.Pair(child, parent)
 
     surface = submesh.create_bps_degree_one(pair, args.degree, args.scale, args.beta)
-    surface_rendered = render.blended_polynomial_surface(
-        surface, args.resolution, color_patches=False
-    )
+    surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
     mesh.write_to_file(get_output_dir() / "result-submesh.obj", surface_rendered)

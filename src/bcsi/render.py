@@ -1,7 +1,6 @@
 """Utilities for rendering blended chart surfaces as polygonal meshes."""
 
 import math
-import random
 
 import numpy as np
 import torch
@@ -42,32 +41,26 @@ def triangle_patch(resolution: int) -> mesh.TriangleMesh:
 def blended_polynomial_surface(
     surface: bps.BlendedPolynomialSurface,
     resolution: int,
-    color_patches: bool = False,
 ) -> mesh.TriangleMesh:
     """Convert BPS to polygonal mesh at a given resolution per face.
 
     :param resolution: Number of subdivisions to apply to the triangular patch
     representing each face in the proxy mesh.
-    :param color_patches: If `True`, assign random colors to each patch.
     """
-    # Start with an empty mesh.
-    result = mesh.TriangleMesh()
-
-    # Iteratively add patches corresponding to each face in the proxy.
     patch = triangle_patch(resolution)
+    # Ignore the z coordinate, which is zero everywhere.
     patch_coordinates = patch.vertices[:, :2]
-    for triangle_id in range(surface.proxy.num_triangles):
-        mapped_coordinates = surface.get_blended_patch_vertices(
-            triangle_id, patch_coordinates
-        )
-        mapped_patch = mesh.from_tensors(mapped_coordinates, patch.triangles)
-        if color_patches:
-            mapped_patch.open3d.paint_uniform_color(_random_color())
-        result += mapped_patch
+    # Calculate all vertex positions and flatten the result.
+    vertices = surface.get_blended_patch_vertices(patch_coordinates).reshape(-1, 3)
+    # Duplicate the topology tensor for each patch, increasing the vertex indices
+    # by the number of vertices per patch each time. Finally, flatten the result.
+    triangles = (
+        patch.triangles.tile(surface.proxy.num_triangles, 1, 1)
+        + torch.ones(surface.proxy.num_triangles, patch.num_triangles, 3)
+        * torch.arange(surface.proxy.num_triangles)[:, None, None]
+        * patch.num_vertices
+    ).reshape(-1, 3)
+    result = mesh.from_tensors(vertices, triangles)
 
     # Merge the patches into one cohesive mesh.
     return result.merge_close_vertices(eps=1e-6)
-
-
-def _random_color() -> np.ndarray:
-    return np.array([random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1)])

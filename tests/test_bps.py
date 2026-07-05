@@ -337,9 +337,9 @@ def test_get_onering_coordinates(
     expected_output: torch.Tensor,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    result = surface.get_onering_coordinates(triangle_id, vertices)
-    assert result.shape == expected_output.shape
-    assert torch.allclose(result, expected_output)
+    result = surface.get_onering_coordinates(vertices)
+    assert result[triangle_id].shape == expected_output.shape
+    assert torch.allclose(result[triangle_id], expected_output)
 
 
 def test_get_onering_coordinates_wrong_input_shape_raises(
@@ -347,24 +347,15 @@ def test_get_onering_coordinates_wrong_input_shape_raises(
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
-        surface.get_onering_coordinates(0, torch.tensor([1, 1, 1]))
-
-
-@pytest.mark.parametrize("triangle_id", [-7, 6])
-def test_get_onering_coordinates_triangle_id_out_of_range_raises(
-    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
-) -> None:
-    surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):
-        surface.get_onering_coordinates(triangle_id, torch.tensor([[1, 1]]))
+        surface.get_onering_coordinates(torch.tensor([1, 1, 1]))
 
 
 def test_get_unblended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    result = surface.get_unblended_patch_vertices(0, torch.tensor([[0, 0], [1, 0]]))
-    assert result.shape == (3, 2, 3)
+    result = surface.get_unblended_patch_vertices(torch.tensor([[0, 0], [1, 0]]))
+    assert result[0].shape == (3, 2, 3)
     assert torch.allclose(
-        result[0],
+        result[0, 0],
         surface.evaluate_patch(0, torch.tensor([[0, 0], [0, -1]])),
     )
 
@@ -374,26 +365,17 @@ def test_get_unblended_patch_vertices_wrong_input_shape_raises(
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
-        surface.get_unblended_patch_vertices(0, torch.tensor([1, 1, 1]))
-
-
-@pytest.mark.parametrize("triangle_id", [-7, 6])
-def test_get_unblended_patch_vertices_triangle_id_out_of_range_raises(
-    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
-) -> None:
-    surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):
-        surface.get_unblended_patch_vertices(triangle_id, torch.tensor([[1, 1]]))
+        surface.get_unblended_patch_vertices(torch.tensor([1, 1, 1]))
 
 
 def test_get_blended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     result = surface.get_blended_patch_vertices(
-        0, torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]])
+        torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]])
     )
-    assert result.shape == (3, 3)
+    assert result[0].shape == (3, 3)
     assert torch.allclose(
-        result, torch.tensor([[0, 0, 0], [1, 1, 0], [1, 0, 0]]).float()
+        result[0], torch.tensor([[0, 0, 0], [1, 1, 0], [1, 0, 0]]).float()
     )
 
 
@@ -402,13 +384,4 @@ def test_get_blended_patch_vertices_wrong_input_shape_raises(
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     with pytest.raises(ValueError, match="bad shape for vertices"):
-        surface.get_blended_patch_vertices(0, torch.tensor([1, 1, 1]))
-
-
-@pytest.mark.parametrize("triangle_id", [-7, 6])
-def test_get_blended_patch_vertices_triangle_id_out_of_range_raises(
-    pyramid_mesh: mesh.TriangleMesh, triangle_id: int
-) -> None:
-    surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    with pytest.raises(ValueError, match=f"triangle_id {triangle_id} out of range"):
-        surface.get_blended_patch_vertices(triangle_id, torch.tensor([[1, 1]]))
+        surface.get_blended_patch_vertices(torch.tensor([1, 1, 1]))
