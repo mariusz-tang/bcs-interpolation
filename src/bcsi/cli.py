@@ -155,6 +155,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
     parent = mesh.read_from_file(args.parent_mesh_path)
     pair = submesh.Pair(child, parent)
 
+    cache = None
     for i, frame_path in enumerate(args.frame_paths):
         frame_parent = mesh.read_from_file(frame_path)
         frame_pair = submesh.new_frame(pair, frame_parent)
@@ -164,6 +165,10 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         frame_bps = submesh.create_bps_degree_one(
             frame_pair, args.degree, args.scale, args.beta
         )
+        if cache:
+            frame_bps.triangle_onering_flips, frame_bps.triangle_onering_indices = cache
+        else:
+            cache = frame_bps.triangle_onering_flips, frame_bps.triangle_onering_indices
         frame_bps_rendered = render.blended_polynomial_surface(
             frame_bps, resolution=args.resolution
         )
