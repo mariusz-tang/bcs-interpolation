@@ -110,10 +110,11 @@ def _initialize_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
     import open3d as o3d
 
-    from bcsi import bps, mesh, render
+    from bcsi import bps, cache, mesh, render
 
     m = mesh.read_from_file(args.mesh_path)
     surface = bps.BlendedPolynomialSurface(m, args.degree, args.scale, beta=args.beta)
+    cache.bps_onerings(args.mesh_path.name, surface)
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
@@ -124,13 +125,14 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
 def _submesh_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    from bcsi import mesh, render, submesh
+    from bcsi import cache, mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
     pair = submesh.Pair(child, parent)
 
     surface = submesh.create_bps_degree_one(pair, args.degree, args.scale, args.beta)
+    cache.bps_onerings(args.submesh_path.name, surface)
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
@@ -139,13 +141,12 @@ def _submesh_bps(args: argparse.Namespace) -> None:
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    from bcsi import mesh, render, submesh
+    from bcsi import cache, mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
     pair = submesh.Pair(child, parent)
 
-    cache = None
     for i, frame_path in enumerate(args.frame_paths):
         frame_parent = mesh.read_from_file(frame_path)
         frame_pair = submesh.new_frame(pair, frame_parent)
@@ -155,10 +156,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         frame_bps = submesh.create_bps_degree_one(
             frame_pair, args.degree, args.scale, args.beta
         )
-        if cache:
-            frame_bps.triangle_onering_flips, frame_bps.triangle_onering_indices = cache
-        else:
-            cache = frame_bps.triangle_onering_flips, frame_bps.triangle_onering_indices
+        cache.bps_onerings(args.submesh_path.name, frame_bps)
         frame_bps_rendered = render.blended_polynomial_surface(
             frame_bps, resolution=args.resolution
         )
