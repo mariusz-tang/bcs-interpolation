@@ -80,6 +80,12 @@ def get_parser() -> argparse.ArgumentParser:
         nargs="+",
         type=pathlib.Path,
     )
+    create_submesh_frames.add_argument(
+        "--method",
+        help="method of coefficient transfer between frames (default: individual)",
+        choices=["individual"],
+        default="individual",
+    )
     create_submesh_frames.set_defaults(func=_create_submesh_frames)
 
     return parser
@@ -147,15 +153,21 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
     parent = mesh.read_from_file(args.parent_mesh_path)
     pair = submesh.Pair(child, parent)
 
+    reference_bps = submesh.create_bps_degree_one(
+        pair, args.degree, args.scale, args.beta
+    )
+    cache.bps_onerings(args.submesh_path.name, reference_bps)
+
     for i, frame_path in enumerate(args.frame_paths):
         frame_parent = mesh.read_from_file(frame_path)
         frame_pair = submesh.new_frame(pair, frame_parent)
 
         mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_pair.child)
 
-        frame_bps = submesh.create_bps_degree_one(
-            frame_pair, args.degree, args.scale, args.beta
-        )
+        if args.method == "individual":
+            frame_bps = submesh.create_bps_degree_one(
+                frame_pair, args.degree, args.scale, args.beta
+            )
         cache.bps_onerings(args.submesh_path.name, frame_bps)
         frame_bps_rendered = render.blended_polynomial_surface(
             frame_bps, resolution=args.resolution
