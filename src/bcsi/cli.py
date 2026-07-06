@@ -83,7 +83,7 @@ def get_parser() -> argparse.ArgumentParser:
     create_submesh_frames.add_argument(
         "--method",
         help="method of coefficient transfer between frames (default: individual)",
-        choices=["individual"],
+        choices=["individual", "use-reference"],
         default="individual",
     )
     create_submesh_frames.add_argument(
@@ -153,7 +153,7 @@ def _submesh_bps(args: argparse.Namespace) -> None:
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    from bcsi import cache, mesh, render, submesh
+    from bcsi import bps, cache, mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
@@ -165,18 +165,33 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
     cache.bps_onerings(args.submesh_path.name, reference_bps)
 
     for i, frame_path in enumerate(args.frame_paths):
+        # Make new submesh pair.
         frame_parent = mesh.read_from_file(frame_path)
         frame_pair = submesh.new_frame(pair, frame_parent)
 
+        # Save the new proxy.
         mesh.write_to_file(
             get_output_dir() / f"{args.output_name}-{i}.obj", frame_pair.child
         )
 
+        # Construct BPS according to selected coefficient transfer method.
         if args.method == "individual":
             frame_bps = submesh.create_bps_degree_one(
                 frame_pair, args.degree, args.scale, args.beta
             )
+        elif args.method == "use-reference":
+            frame_bps = bps.BlendedPolynomialSurface(
+                frame_pair.child,
+                args.degree,
+                args.scale,
+                reference_bps.coefficients,
+                args.beta,
+            )
+
+        # Recover onering data from cache.
         cache.bps_onerings(args.submesh_path.name, frame_bps)
+
+        # Render the new BPS and save it.
         frame_bps_rendered = render.blended_polynomial_surface(
             frame_bps, resolution=args.resolution
         )
