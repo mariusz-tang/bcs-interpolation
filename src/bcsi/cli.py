@@ -86,6 +86,12 @@ def get_parser() -> argparse.ArgumentParser:
         choices=["individual"],
         default="individual",
     )
+    create_submesh_frames.add_argument(
+        "--output-name",
+        default="result-frame",
+        help="name prefix to give the output meshes, which will be saved as .obj"
+        " files in ./output (default: 'result-frame')",
+    )
     create_submesh_frames.set_defaults(func=_create_submesh_frames)
 
     return parser
@@ -162,7 +168,9 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         frame_parent = mesh.read_from_file(frame_path)
         frame_pair = submesh.new_frame(pair, frame_parent)
 
-        mesh.write_to_file(get_output_dir() / f"result-frame-{i}.obj", frame_pair.child)
+        mesh.write_to_file(
+            get_output_dir() / f"{args.output_name}-{i}.obj", frame_pair.child
+        )
 
         if args.method == "individual":
             frame_bps = submesh.create_bps_degree_one(
@@ -174,7 +182,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         )
         frame_bps_rendered.open3d.compute_vertex_normals()
         mesh.write_to_file(
-            get_output_dir() / f"result-frame-bps-{i}.obj", frame_bps_rendered
+            get_output_dir() / f"{args.output_name}-bps-{i}.obj", frame_bps_rendered
         )
 
 
