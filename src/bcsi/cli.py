@@ -42,7 +42,7 @@ def get_parser() -> argparse.ArgumentParser:
     diff_parser = argparse.ArgumentParser(add_help=False)
     diff_parser.add_argument(
         "--diff-metric",
-        choices=[None, "vertex-to-vertex"],
+        choices=[None, "vertex-to-vertex", "vertex-to-mesh"],
         default=None,
         help="metric to use to compare rendered surfaces to the target surfaces",
     )
@@ -159,9 +159,13 @@ def _submesh_bps(args: argparse.Namespace) -> None:
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
-    if args.diff_metric == "vertex-to-vertex":
+    if args.diff_metric:
+        metric_func = {
+            "vertex-to-vertex": diff.vertex_to_vertex,
+            "vertex-to-mesh": diff.vertex_to_mesh,
+        }[args.diff_metric]
         print(f"Diff ({args.diff_metric}) between result BPS and input parent mesh:")
-        diff_ = diff.vertex_to_vertex(surface_rendered, parent)
+        diff_ = metric_func(surface_rendered, parent)
         diff.print(diff_)
         colors = torch.ones_like(surface_rendered.vertices)
         colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
@@ -194,6 +198,12 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
 
     diffs = []
     rendered_meshes = []
+
+    metric_func = {
+        "vertex-to-vertex": diff.vertex_to_vertex,
+        "vertex-to-mesh": diff.vertex_to_mesh,
+        None: None,
+    }[args.diff_metric]
 
     for i, frame_path in enumerate(args.frame_paths):
         # Make new submesh pair.
@@ -230,8 +240,8 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         rendered_meshes.append(frame_bps_rendered)
 
         # Save the diff for display at the end.
-        if args.diff_metric == "vertex-to-vertex":
-            diff_ = diff.vertex_to_vertex(frame_bps_rendered, frame_parent)
+        if metric_func:
+            diff_ = metric_func(frame_bps_rendered, frame_parent)
             diffs.append(diff_)
             colors = torch.ones_like(frame_bps_rendered.vertices)
             colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
@@ -242,13 +252,13 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         )
 
     # Display diffs.
-    if args.diff_metric == "vertex-to-vertex":
+    if metric_func:
         print(
             f"Diffs ({args.diff_metric}) between BPS results and input parent meshes:"
         )
         print("Reference:")
         diff.print(
-            diff.vertex_to_vertex(
+            metric_func(
                 render.blended_polynomial_surface(reference_bps, args.resolution),
                 parent,
             )

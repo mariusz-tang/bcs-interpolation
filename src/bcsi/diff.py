@@ -22,6 +22,23 @@ def vertex_to_vertex(
     return torch.tensor(np.asarray(distances_o3d))
 
 
+def vertex_to_mesh(
+    source: mesh.TriangleMesh, target: mesh.TriangleMesh
+) -> torch.Tensor:
+    """Distance from each vertex in `source` to the nearest point on `target`.
+
+    Note that the nearest point on `target` is not necessarily a vertex.
+
+    Shape: (num_source_vertices)
+    """
+    scene = o3d.t.geometry.RaycastingScene()
+    scene.add_triangles(o3d.t.geometry.TriangleMesh.from_legacy(target.open3d))
+
+    query_points = o3d.core.Tensor(source.vertices.float().numpy())
+    distances_o3d = scene.compute_distance(query_points)
+    return torch.tensor(distances_o3d.numpy())
+
+
 def print(diff: torch.Tensor) -> None:
     """Print diff information from a `diff` output tensor."""
     builtins.print(f"  mean: {diff.mean()}")
