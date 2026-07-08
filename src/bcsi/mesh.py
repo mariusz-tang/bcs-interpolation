@@ -133,3 +133,8 @@ def from_tensors(vertices: torch.Tensor, triangles: torch.Tensor) -> TriangleMes
         o3d.utility.Vector3iVector(triangles.numpy()),
     )
     return TriangleMesh(mesh)
+
+
+def show(mesh: TriangleMesh) -> None:
+    """Visualize a mesh using open3d's visualizer."""
+    o3d.visualization.draw_geometries([mesh.open3d])

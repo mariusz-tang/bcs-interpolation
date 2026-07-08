@@ -32,6 +32,12 @@ def get_parser() -> argparse.ArgumentParser:
         default=3,
         help="resolution with which to render blended chart surfaces (default: 3)",
     )
+    bps_parser.add_argument(
+        "--visualize",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="whether or not to show the rendered mesh (default: false)",
+    )
 
     diff_parser = argparse.ArgumentParser(add_help=False)
     diff_parser.add_argument(
@@ -55,12 +61,6 @@ def get_parser() -> argparse.ArgumentParser:
         default="result",
         help="name to give the output mesh, which will be saved as a .obj file "
         "in ./output (default: 'result')",
-    )
-    create_bps.add_argument(
-        "--visualize",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="whether or not to show the rendered mesh (default: true)",
     )
     create_bps.set_defaults(func=_initialize_bps)
 
@@ -130,7 +130,6 @@ def main() -> None:
 
 def _initialize_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    import open3d as o3d
 
     from bcsi import bps, cache, mesh, render
 
@@ -141,7 +140,7 @@ def _initialize_bps(args: argparse.Namespace) -> None:
     surface_rendered.open3d.compute_vertex_normals()
 
     if args.visualize:
-        o3d.visualization.draw_geometries([surface_rendered.open3d])
+        mesh.show(surface_rendered)
     mesh.write_to_file(get_output_dir() / f"{args.output_name}.obj", surface_rendered)
 
 
@@ -168,6 +167,9 @@ def _submesh_bps(args: argparse.Namespace) -> None:
         colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
         surface_rendered.set_vertex_colors(colors)
 
+    if args.visualize:
+        mesh.show(surface_rendered)
+
     mesh.write_to_file(
         get_output_dir() / "result-submesh.obj",
         surface_rendered,
@@ -191,6 +193,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
     cache.bps_onerings(args.submesh_path.name, reference_bps)
 
     diffs = []
+    rendered_meshes = []
 
     for i, frame_path in enumerate(args.frame_paths):
         # Make new submesh pair.
@@ -224,6 +227,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
             frame_bps, resolution=args.resolution
         )
         frame_bps_rendered.open3d.compute_vertex_normals()
+        rendered_meshes.append(frame_bps_rendered)
 
         # Save the diff for display at the end.
         if args.diff_metric == "vertex-to-vertex":
@@ -255,6 +259,10 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
             print(str(path))
             diff.print(diff_)
             print()
+
+    if args.visualize:
+        for m in rendered_meshes:
+            mesh.show(m)
 
 
 if __name__ == "__main__":
