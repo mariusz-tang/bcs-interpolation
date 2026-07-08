@@ -96,7 +96,7 @@ class TriangleMesh:
 
     def set_vertex_colors(self, colors: torch.Tensor) -> None:
         """Set vertex colors on the underlying open3d mesh."""
-        self._mesh.vertex_colors = o3d.utility.Vector3dVector(np.asarray(colors))
+        self._mesh.vertex_colors = o3d.utility.Vector3dVector(colors.numpy())
 
 
 def _tensor(
