@@ -94,6 +94,10 @@ class TriangleMesh:
         self._clear()
         return self
 
+    def set_vertex_colors(self, colors: torch.Tensor) -> None:
+        """Set vertex colors on the underlying open3d mesh."""
+        self._mesh.vertex_colors = o3d.utility.Vector3dVector(np.asarray(colors))
+
 
 def _tensor(
     a: o3d.utility.Vector3dVector | o3d.utility.Vector3iVector,
@@ -107,14 +111,16 @@ def read_from_file(path: pathlib.Path) -> TriangleMesh:
     return TriangleMesh(o3d_mesh)
 
 
-def write_to_file(path: pathlib.Path, mesh: TriangleMesh) -> None:
+def write_to_file(
+    path: pathlib.Path, mesh: TriangleMesh, write_vertex_colors: bool = False
+) -> None:
     """Write a mesh to a file."""
     o3d.io.write_triangle_mesh(
         path,
         mesh.open3d,
         write_ascii=True,
         write_vertex_normals=False,
-        write_vertex_colors=False,
+        write_vertex_colors=write_vertex_colors,
         write_triangle_uvs=False,
         print_progress=True,
     )

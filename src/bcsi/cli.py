@@ -33,6 +33,14 @@ def get_parser() -> argparse.ArgumentParser:
         help="resolution with which to render blended chart surfaces (default: 3)",
     )
 
+    diff_parser = argparse.ArgumentParser(add_help=False)
+    diff_parser.add_argument(
+        "--diff-metric",
+        choices=[None, "vertex-to-vertex"],
+        default=None,
+        help="metric to use to compare rendered surfaces to the target surfaces",
+    )
+
     parser = argparse.ArgumentParser(
         description="Blended chart surface interpolation utility",
     )
@@ -56,7 +64,9 @@ def get_parser() -> argparse.ArgumentParser:
     )
     create_bps.set_defaults(func=_initialize_bps)
 
-    submesh_bps = subparsers.add_parser("submesh-bps", parents=[bps_parser])
+    submesh_bps = subparsers.add_parser(
+        "submesh-bps", parents=[bps_parser, diff_parser]
+    )
     submesh_bps.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
     )
@@ -66,7 +76,7 @@ def get_parser() -> argparse.ArgumentParser:
     submesh_bps.set_defaults(func=_submesh_bps)
 
     create_submesh_frames = subparsers.add_parser(
-        "create-submesh-frames", parents=[bps_parser]
+        "create-submesh-frames", parents=[bps_parser, diff_parser]
     )
     create_submesh_frames.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
@@ -137,7 +147,9 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
 def _submesh_bps(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    from bcsi import cache, mesh, render, submesh
+    import torch
+
+    from bcsi import cache, diff, mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
@@ -148,12 +160,26 @@ def _submesh_bps(args: argparse.Namespace) -> None:
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
-    mesh.write_to_file(get_output_dir() / "result-submesh.obj", surface_rendered)
+    if args.diff_metric == "vertex-to-vertex":
+        print(f"Diff ({args.diff_metric}) between result BPS and input parent mesh:")
+        diff_ = diff.vertex_to_vertex(surface_rendered, parent)
+        diff.print(diff_)
+        colors = torch.ones_like(surface_rendered.vertices)
+        colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
+        surface_rendered.set_vertex_colors(colors)
+
+    mesh.write_to_file(
+        get_output_dir() / "result-submesh.obj",
+        surface_rendered,
+        write_vertex_colors=True,
+    )
 
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
     # Defer heavy imports.
-    from bcsi import bps, cache, mesh, render, submesh
+    import torch
+
+    from bcsi import bps, cache, diff, mesh, render, submesh
 
     child = mesh.read_from_file(args.submesh_path)
     parent = mesh.read_from_file(args.parent_mesh_path)
@@ -163,6 +189,8 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         pair, args.degree, args.scale, args.beta
     )
     cache.bps_onerings(args.submesh_path.name, reference_bps)
+
+    diffs = []
 
     for i, frame_path in enumerate(args.frame_paths):
         # Make new submesh pair.
@@ -196,9 +224,37 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
             frame_bps, resolution=args.resolution
         )
         frame_bps_rendered.open3d.compute_vertex_normals()
+
+        # Save the diff for display at the end.
+        if args.diff_metric == "vertex-to-vertex":
+            diff_ = diff.vertex_to_vertex(frame_bps_rendered, frame_parent)
+            diffs.append(diff_)
+            colors = torch.ones_like(frame_bps_rendered.vertices)
+            colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
+            frame_bps_rendered.set_vertex_colors(colors)
+
         mesh.write_to_file(
             get_output_dir() / f"{args.output_name}-bps-{i}.obj", frame_bps_rendered
         )
+
+    # Display diffs.
+    if args.diff_metric == "vertex-to-vertex":
+        print(
+            f"Diffs ({args.diff_metric}) between BPS results and input parent meshes:"
+        )
+        print("Reference:")
+        diff.print(
+            diff.vertex_to_vertex(
+                render.blended_polynomial_surface(reference_bps, args.resolution),
+                parent,
+            )
+        )
+        print()
+
+        for path, diff_ in zip(args.frame_paths, diffs, strict=True):
+            print(str(path))
+            diff.print(diff_)
+            print()
 
 
 if __name__ == "__main__":
