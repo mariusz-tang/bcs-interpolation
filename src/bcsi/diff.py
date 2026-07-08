@@ -1,0 +1,20 @@
+"""Utilities for comparing meshes."""
+
+import numpy as np
+import open3d as o3d
+import torch
+
+from bcsi import mesh
+
+
+def vertex_to_vertex(
+    source: mesh.TriangleMesh, target: mesh.TriangleMesh
+) -> torch.Tensor:
+    """Distance from each vertex in `source` to the nearest vertex in `target`.
+
+    Shape: (num_source_vertices)
+    """
+    points_source = o3d.geometry.PointCloud(source.open3d.vertices)
+    points_target = o3d.geometry.PointCloud(target.open3d.vertices)
+    distances_o3d = points_source.compute_point_cloud_distance(points_target)
+    return torch.tensor(np.asarray(distances_o3d))
