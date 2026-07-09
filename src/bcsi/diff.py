@@ -1,7 +1,5 @@
 """Utilities for comparing meshes."""
 
-import builtins
-
 import numpy as np
 import open3d as o3d
 import torch
@@ -39,9 +37,11 @@ def vertex_to_mesh(
     return torch.tensor(distances_o3d.numpy())
 
 
-def print(diff: torch.Tensor) -> None:
-    """Print diff information from a `diff` output tensor."""
-    builtins.print(f"  mean: {diff.mean()}")
-    builtins.print(f"   std: {diff.std()}")
-    builtins.print(f"median: {diff.median()}")
-    builtins.print(f"   max: {diff.max()}")
+def summary(diff: torch.Tensor) -> dict:
+    """Return a summary of a `diff` output tensor as a `dict`."""
+    return {
+        "mean": diff.mean().item(),
+        "std": diff.std().item(),
+        "median": diff.median().item(),
+        "max": diff.max().item(),
+    }

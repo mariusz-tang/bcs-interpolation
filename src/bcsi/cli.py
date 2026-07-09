@@ -2,6 +2,7 @@
 """Command-line interface for BCSI."""
 
 import argparse
+import json
 import logging
 import pathlib
 
@@ -153,6 +154,8 @@ def _submesh_bps(args: argparse.Namespace) -> None:
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
+    outdir = get_output_dir(args.output_name)
+
     if args.diff_metric:
         metric_func = {
             "vertex-to-vertex": diff.vertex_to_vertex,
@@ -160,7 +163,7 @@ def _submesh_bps(args: argparse.Namespace) -> None:
         }[args.diff_metric]
         print(f"Diff ({args.diff_metric}) between result BPS and input parent mesh:")
         diff_ = metric_func(surface_rendered, parent)
-        diff.print(diff_)
+        _write_data(outdir / "diff.json", {"submesh": diff.summary(diff_)})
         colors = torch.ones_like(surface_rendered.vertices)
         colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
         surface_rendered.set_vertex_colors(colors)
@@ -169,10 +172,16 @@ def _submesh_bps(args: argparse.Namespace) -> None:
         mesh.show(surface_rendered)
 
     mesh.write_to_file(
-        get_output_dir(args.output_name) / "bps-submesh.ply",
+        outdir / "bps-submesh.ply",
         surface_rendered,
         write_vertex_colors=True,
     )
+
+
+def _write_data(path: pathlib.Path, data: dict) -> None:
+    print(f"Writing data to {path}")
+    with path.open("w") as f:
+        json.dump(data, f)
 
 
 def _create_submesh_frames(args: argparse.Namespace) -> None:
@@ -190,7 +199,9 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
     )
     cache.bps_onerings(args.submesh_path.name, reference_bps)
 
-    diffs = []
+    outdir = get_output_dir(args.output_name)
+
+    diffs = {}
     rendered_meshes = []
 
     metric_func = {
@@ -205,9 +216,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         frame_pair = submesh.new_frame(pair, frame_parent)
 
         # Save the new proxy.
-        mesh.write_to_file(
-            get_output_dir(args.output_name) / f"frame-proxy-{i}.ply", frame_pair.child
-        )
+        mesh.write_to_file(outdir / f"frame-proxy-{i}.ply", frame_pair.child)
 
         # Construct BPS according to selected coefficient transfer method.
         if args.method == "individual":
@@ -236,33 +245,22 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
         # Save the diff for display at the end.
         if metric_func:
             diff_ = metric_func(frame_bps_rendered, frame_parent)
-            diffs.append(diff_)
+            diffs[f"frame-{i}"] = diff.summary(diff_)
             colors = torch.ones_like(frame_bps_rendered.vertices)
             colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
             frame_bps_rendered.set_vertex_colors(colors)
 
-        mesh.write_to_file(
-            get_output_dir(args.output_name) / f"frame-bps-{i}.ply", frame_bps_rendered
-        )
+        mesh.write_to_file(outdir / f"frame-bps-{i}.ply", frame_bps_rendered)
 
-    # Display diffs.
+    # Save diffs.
     if metric_func:
-        print(
-            f"Diffs ({args.diff_metric}) between BPS results and input parent meshes:"
-        )
-        print("Reference:")
-        diff.print(
+        diffs["reference"] = diff.summary(
             metric_func(
                 render.blended_polynomial_surface(reference_bps, args.resolution),
                 parent,
             )
         )
-        print()
-
-        for path, diff_ in zip(args.frame_paths, diffs, strict=True):
-            print(str(path))
-            diff.print(diff_)
-            print()
+        _write_data(outdir / "frame-diff.json", diffs)
 
     if args.visualize:
         for m in rendered_meshes:
