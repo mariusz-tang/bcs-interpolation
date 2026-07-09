@@ -4,7 +4,7 @@ import pathlib
 import pytest
 import torch
 
-from bcsi import bps, mesh
+from bcsi import bps, io, mesh
 
 TEST_DATA_DIR = pathlib.Path(__file__).parent / "data"
 CUBE_PATH = TEST_DATA_DIR / "cube.obj"
@@ -12,7 +12,7 @@ CUBE_PATH = TEST_DATA_DIR / "cube.obj"
 
 @pytest.fixture
 def cube_mesh() -> mesh.TriangleMesh:
-    return mesh.read_from_file(CUBE_PATH)
+    return io.read_mesh(CUBE_PATH)
 
 
 def test_constructor_proxy_mesh(cube_mesh: mesh.TriangleMesh) -> None:

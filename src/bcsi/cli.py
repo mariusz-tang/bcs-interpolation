@@ -130,7 +130,7 @@ def main() -> None:
     )
 
     # Defer heavy imports until after parsing.
-    from bcsi import commands
+    from bcsi import commands, io
 
     command_func = getattr(commands, args.func_name)
-    command_func(args)
+    command_func(args, io.output_dir(args.output_name))

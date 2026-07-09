@@ -1,6 +1,5 @@
 """Utilities for working with Open3D meshes in a torch-focused workflow."""
 
-import pathlib
 from functools import cached_property
 from typing import Any
 
@@ -103,26 +102,6 @@ def _tensor(
     a: o3d.utility.Vector3dVector | o3d.utility.Vector3iVector,
 ) -> torch.Tensor:
     return torch.tensor(np.asarray(a))
-
-
-def read_from_file(path: pathlib.Path) -> TriangleMesh:
-    """Load a mesh from a file."""
-    o3d_mesh = o3d.io.read_triangle_mesh(path)
-    return TriangleMesh(o3d_mesh)
-
-
-def write_to_file(
-    path: pathlib.Path, mesh: TriangleMesh, write_vertex_colors: bool = False
-) -> None:
-    """Write a mesh to a file."""
-    print(f"Writing mesh to {path}")
-    o3d.io.write_triangle_mesh(
-        path,
-        mesh.open3d,
-        write_vertex_normals=False,
-        write_vertex_colors=write_vertex_colors,
-        write_triangle_uvs=False,
-    )
 
 
 def from_tensors(vertices: torch.Tensor, triangles: torch.Tensor) -> TriangleMesh:

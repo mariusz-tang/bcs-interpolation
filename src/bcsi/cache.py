@@ -1,26 +1,21 @@
 """Utilities for caching computationally expensive BPS onering data."""
 
-import pathlib
-
 import torch
 
-from bcsi import bps, commands
+from bcsi import bps, io
 
-
-def _cache_dir() -> pathlib.Path:
-    cache_dir = commands.get_output_dir("cache")
-    cache_dir.mkdir(exist_ok=True)
-    return cache_dir
+CACHE_DIR = io.ROOT_DIR / "cache"
+CACHE_DIR.mkdir(exist_ok=True)
 
 
 def _write(name: str, flips: torch.Tensor, indices: torch.Tensor) -> None:
-    torch.save(flips, _cache_dir() / f"{name}.flips.pt")
-    torch.save(indices, _cache_dir() / f"{name}.indices.pt")
+    torch.save(flips, CACHE_DIR / f"{name}.flips.pt")
+    torch.save(indices, CACHE_DIR / f"{name}.indices.pt")
 
 
 def _read(name: str) -> tuple[torch.Tensor, torch.Tensor] | None:
-    flips_path = _cache_dir() / f"{name}.flips.pt"
-    indices_path = _cache_dir() / f"{name}.indices.pt"
+    flips_path = CACHE_DIR / f"{name}.flips.pt"
+    indices_path = CACHE_DIR / f"{name}.indices.pt"
 
     if not flips_path.exists() or not indices_path.exists:
         return None

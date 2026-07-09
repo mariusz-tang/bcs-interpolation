@@ -6,5 +6,6 @@ stubs/
 
 /data/
 /output/
+/cache/
 
 /logs
