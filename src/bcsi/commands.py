@@ -36,17 +36,12 @@ def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     surface_rendered = render.blended_polynomial_surface(surface, args.resolution)
     surface_rendered.open3d.compute_vertex_normals()
 
-    if args.diff_metric:
-        metric_func = {
-            "vertex-to-vertex": diff.vertex_to_vertex,
-            "vertex-to-mesh": diff.vertex_to_mesh,
-        }[args.diff_metric]
+    diff_func = _diff_functions[args.diff_metric]
+    if diff_func:
         print(f"Diff ({args.diff_metric}) between result BPS and input parent mesh:")
-        diff_ = metric_func(surface_rendered, parent)
+        diff_ = diff_func(surface_rendered, parent)
         io.write_json(output_dir / "diff.json", {"submesh": diff.summary(diff_)})
-        colors = torch.ones_like(surface_rendered.vertices)
-        colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
-        surface_rendered.set_vertex_colors(colors)
+        _add_diff_colors(surface_rendered, diff_)
 
     if args.visualize:
         mesh.show(surface_rendered)
@@ -72,11 +67,7 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     diffs = {}
     rendered_meshes = []
 
-    metric_func = {
-        "vertex-to-vertex": diff.vertex_to_vertex,
-        "vertex-to-mesh": diff.vertex_to_mesh,
-        None: None,
-    }[args.diff_metric]
+    diff_func = _diff_functions[args.diff_metric]
 
     for i, frame_path in enumerate(args.frame_paths):
         # Make new submesh pair.
@@ -111,19 +102,17 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
         rendered_meshes.append(frame_bps_rendered)
 
         # Save the diff for display at the end.
-        if metric_func:
-            diff_ = metric_func(frame_bps_rendered, frame_parent)
+        if diff_func:
+            diff_ = diff_func(frame_bps_rendered, frame_parent)
             diffs[f"frame-{i}"] = diff.summary(diff_)
-            colors = torch.ones_like(frame_bps_rendered.vertices)
-            colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
-            frame_bps_rendered.set_vertex_colors(colors)
+            _add_diff_colors(frame_bps_rendered, diff_)
 
         io.write_mesh(output_dir / f"frame-bps-{i}.ply", frame_bps_rendered)
 
     # Save diffs.
-    if metric_func:
+    if diff_func:
         diffs["reference"] = diff.summary(
-            metric_func(
+            diff_func(
                 render.blended_polynomial_surface(reference_bps, args.resolution),
                 parent,
             )
@@ -133,3 +122,16 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     if args.visualize:
         for m in rendered_meshes:
             mesh.show(m)
+
+
+_diff_functions = {
+    "vertex-to-vertex": diff.vertex_to_vertex,
+    "vertex-to-mesh": diff.vertex_to_mesh,
+    None: None,
+}
+
+
+def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
+    colors = torch.ones_like(mesh_.vertices)
+    colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
+    mesh_.set_vertex_colors(colors)
