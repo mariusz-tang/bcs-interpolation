@@ -38,6 +38,12 @@ def get_parser() -> argparse.ArgumentParser:
         default=False,
         help="whether or not to show the rendered mesh (default: false)",
     )
+    bps_parser.add_argument(
+        "--output-name",
+        default="result",
+        help="name of directory in ./output/ in which to place output files "
+        "(default: 'result')",
+    )
 
     diff_parser = argparse.ArgumentParser(add_help=False)
     diff_parser.add_argument(
@@ -55,12 +61,6 @@ def get_parser() -> argparse.ArgumentParser:
     create_bps = subparsers.add_parser("create-bps", parents=[bps_parser])
     create_bps.add_argument(
         "mesh_path", help="path to proxy mesh file", type=pathlib.Path
-    )
-    create_bps.add_argument(
-        "--output-name",
-        default="result",
-        help="name to give the output mesh, which will be saved as a .obj file "
-        "in ./output (default: 'result')",
     )
     create_bps.set_defaults(func=_initialize_bps)
 
@@ -96,21 +96,15 @@ def get_parser() -> argparse.ArgumentParser:
         choices=["individual", "use-reference"],
         default="individual",
     )
-    create_submesh_frames.add_argument(
-        "--output-name",
-        default="result-frame",
-        help="name prefix to give the output meshes, which will be saved as .obj"
-        " files in ./output (default: 'result-frame')",
-    )
     create_submesh_frames.set_defaults(func=_create_submesh_frames)
 
     return parser
 
 
-def get_output_dir() -> pathlib.Path:
-    """Get the output directory, creating it if necessary."""
-    output_dir = pathlib.Path(__file__).parent.parent.parent / "output"
-    output_dir.mkdir(exist_ok=True)
+def get_output_dir(name: str) -> pathlib.Path:
+    """Get an output directory with the given `name`, creating it if necessary."""
+    output_dir = pathlib.Path(__file__).parent.parent.parent / "output" / name
+    output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
 
@@ -141,7 +135,7 @@ def _initialize_bps(args: argparse.Namespace) -> None:
 
     if args.visualize:
         mesh.show(surface_rendered)
-    mesh.write_to_file(get_output_dir() / f"{args.output_name}.obj", surface_rendered)
+    mesh.write_to_file(get_output_dir(args.output_name) / "bps.ply", surface_rendered)
 
 
 def _submesh_bps(args: argparse.Namespace) -> None:
@@ -175,7 +169,7 @@ def _submesh_bps(args: argparse.Namespace) -> None:
         mesh.show(surface_rendered)
 
     mesh.write_to_file(
-        get_output_dir() / "result-submesh.obj",
+        get_output_dir(args.output_name) / "bps-submesh.ply",
         surface_rendered,
         write_vertex_colors=True,
     )
@@ -212,7 +206,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
 
         # Save the new proxy.
         mesh.write_to_file(
-            get_output_dir() / f"{args.output_name}-{i}.obj", frame_pair.child
+            get_output_dir(args.output_name) / f"frame-proxy-{i}.ply", frame_pair.child
         )
 
         # Construct BPS according to selected coefficient transfer method.
@@ -248,7 +242,7 @@ def _create_submesh_frames(args: argparse.Namespace) -> None:
             frame_bps_rendered.set_vertex_colors(colors)
 
         mesh.write_to_file(
-            get_output_dir() / f"{args.output_name}-bps-{i}.obj", frame_bps_rendered
+            get_output_dir(args.output_name) / f"frame-bps-{i}.ply", frame_bps_rendered
         )
 
     # Display diffs.

@@ -8,7 +8,7 @@ from bcsi import bps, cli
 
 
 def _cache_dir() -> pathlib.Path:
-    cache_dir = cli.get_output_dir() / "cache"
+    cache_dir = cli.get_output_dir("cache")
     cache_dir.mkdir(exist_ok=True)
     return cache_dir
 

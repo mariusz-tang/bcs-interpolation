@@ -115,14 +115,13 @@ def write_to_file(
     path: pathlib.Path, mesh: TriangleMesh, write_vertex_colors: bool = False
 ) -> None:
     """Write a mesh to a file."""
+    print(f"Writing mesh to {path}")
     o3d.io.write_triangle_mesh(
         path,
         mesh.open3d,
-        write_ascii=True,
         write_vertex_normals=False,
         write_vertex_colors=write_vertex_colors,
         write_triangle_uvs=False,
-        print_progress=True,
     )
 
 
