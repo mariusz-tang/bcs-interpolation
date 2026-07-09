@@ -4,11 +4,11 @@ import pathlib
 
 import torch
 
-from bcsi import bps, cli
+from bcsi import bps, commands
 
 
 def _cache_dir() -> pathlib.Path:
-    cache_dir = cli.get_output_dir("cache")
+    cache_dir = commands.get_output_dir("cache")
     cache_dir.mkdir(exist_ok=True)
     return cache_dir
 
