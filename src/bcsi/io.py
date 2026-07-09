@@ -3,6 +3,7 @@
 import json
 import pathlib
 
+import matplotlib.pyplot as plt
 import open3d as o3d
 
 from bcsi import mesh
@@ -15,6 +16,12 @@ def output_dir(name: str) -> pathlib.Path:
     output_dir = ROOT_DIR / "output" / name
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
+
+
+def read_json(path: pathlib.Path) -> dict:
+    """Read a json file."""
+    with path.open("r") as f:
+        return json.load(f)
 
 
 def write_json(path: pathlib.Path, data: dict) -> None:
@@ -42,3 +49,9 @@ def write_mesh(
         write_vertex_colors=write_vertex_colors,
         write_triangle_uvs=False,
     )
+
+
+def write_figure(path: pathlib.Path, figure: plt.Figure) -> None:
+    """Write a matplotlib figure."""
+    print(f"Writing figure to {path}")
+    figure.savefig(path)

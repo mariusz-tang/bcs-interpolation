@@ -10,6 +10,14 @@ import argcomplete
 
 def get_parser() -> argparse.ArgumentParser:
     """Create the BCSI argument parser."""
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument(
+        "--output-name",
+        default="result",
+        help="name of directory in ./output/ in which to place output files "
+        "(default: 'result')",
+    )
+
     bps_parser = argparse.ArgumentParser(add_help=False)
     bps_parser.add_argument(
         "--degree",
@@ -38,12 +46,6 @@ def get_parser() -> argparse.ArgumentParser:
         default=False,
         help="whether or not to show the rendered mesh (default: false)",
     )
-    bps_parser.add_argument(
-        "--output-name",
-        default="result",
-        help="name of directory in ./output/ in which to place output files "
-        "(default: 'result')",
-    )
 
     diff_parser = argparse.ArgumentParser(add_help=False)
     diff_parser.add_argument(
@@ -60,7 +62,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     create_bps = subparsers.add_parser(
         "create-bps",
-        parents=[bps_parser],
+        parents=[base_parser, bps_parser],
         help="create a BPS from a coarse proxy mesh",
         description="Create a BPS from a coarse proxy mesh. The coefficients "
         "will be initialized as level unit planes.",
@@ -72,7 +74,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     submesh_bps = subparsers.add_parser(
         "submesh-bps",
-        parents=[bps_parser, diff_parser],
+        parents=[base_parser, bps_parser, diff_parser],
         help="create a BPS from a fine mesh and coarse submesh",
         description="Create a BPS from a fine mesh and coarse submesh. The "
         "coarse mesh will be used as the proxy, while the coefficients will be "
@@ -88,7 +90,7 @@ def get_parser() -> argparse.ArgumentParser:
 
     create_submesh_frames = subparsers.add_parser(
         "create-submesh-frames",
-        parents=[bps_parser, diff_parser],
+        parents=[base_parser, bps_parser, diff_parser],
         help="create a series of BPS objects from a set of corresponding fine "
         "meshes and a single coarse submesh",
         description="Create a series of BPS objects from a set of corresponding "
@@ -113,6 +115,17 @@ def get_parser() -> argparse.ArgumentParser:
         default="individual",
     )
     create_submesh_frames.set_defaults(func_name="create_submesh_frames")
+
+    plot_diff_parser = subparsers.add_parser(
+        "plot-diffs",
+        parents=[base_parser],
+        help="plot diff data",
+        description="Plot diff data produced by other commands.",
+    )
+    plot_diff_parser.add_argument(
+        "diff_path", help="path to diff JSON file", type=pathlib.Path
+    )
+    plot_diff_parser.set_defaults(func_name="plot_diffs")
 
     return parser
 

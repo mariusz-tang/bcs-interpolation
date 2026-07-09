@@ -9,7 +9,7 @@ import pathlib
 
 import torch
 
-from bcsi import bps, cache, diff, io, mesh, render, submesh
+from bcsi import bps, cache, diff, io, mesh, plot, render, submesh
 
 
 def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
@@ -104,14 +104,14 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
         # Save the diff for display at the end.
         if diff_func:
             diff_ = diff_func(frame_bps_rendered, frame_parent)
-            diffs[f"frame-{i}"] = diff.summary(diff_)
+            diffs[f"{i}"] = diff.summary(diff_)
             _add_diff_colors(frame_bps_rendered, diff_)
 
         io.write_mesh(output_dir / f"frame-bps-{i}.ply", frame_bps_rendered)
 
     # Save diffs.
     if diff_func:
-        diffs["reference"] = diff.summary(
+        diffs["ref"] = diff.summary(
             diff_func(
                 render.blended_polynomial_surface(reference_bps, args.resolution),
                 parent,
@@ -135,3 +135,10 @@ def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
     colors = torch.ones_like(mesh_.vertices)
     colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
     mesh_.set_vertex_colors(colors)
+
+
+def plot_diffs(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
+    """Plot diff data from JSON files."""
+    data = io.read_json(args.diff_path)
+    fig = plot.diff_comparison(data)
+    io.write_figure(output_dir / "diff.svg", fig)
