@@ -58,14 +58,25 @@ def get_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers()
 
-    create_bps = subparsers.add_parser("create-bps", parents=[bps_parser])
+    create_bps = subparsers.add_parser(
+        "create-bps",
+        parents=[bps_parser],
+        help="create a BPS from a coarse proxy mesh",
+        description="Create a BPS from a coarse proxy mesh. The coefficients "
+        "will be initialized as level unit planes.",
+    )
     create_bps.add_argument(
         "mesh_path", help="path to proxy mesh file", type=pathlib.Path
     )
     create_bps.set_defaults(func_name="initialize_bps")
 
     submesh_bps = subparsers.add_parser(
-        "submesh-bps", parents=[bps_parser, diff_parser]
+        "submesh-bps",
+        parents=[bps_parser, diff_parser],
+        help="create a BPS from a fine mesh and coarse submesh",
+        description="Create a BPS from a fine mesh and coarse submesh. The "
+        "coarse mesh will be used as the proxy, while the coefficients will be "
+        "derived from properties on the fine mesh.",
     )
     submesh_bps.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
@@ -76,7 +87,12 @@ def get_parser() -> argparse.ArgumentParser:
     submesh_bps.set_defaults(func_name="submesh_bps")
 
     create_submesh_frames = subparsers.add_parser(
-        "create-submesh-frames", parents=[bps_parser, diff_parser]
+        "create-submesh-frames",
+        parents=[bps_parser, diff_parser],
+        help="create a series of BPS objects from a set of corresponding fine "
+        "meshes and a single coarse submesh",
+        description="Create a series of BPS objects from a set of corresponding "
+        "fine meshes and a coarse submesh corresponding to one of the fine meshes.",
     )
     create_submesh_frames.add_argument(
         "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
