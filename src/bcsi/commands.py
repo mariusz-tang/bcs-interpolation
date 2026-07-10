@@ -22,7 +22,7 @@ def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
 
     if args.visualize:
         mesh.show(surface_rendered)
-    io.write_mesh(output_dir / "bps.ply", surface_rendered)
+    io.write_mesh(surface_rendered, output_dir / "bps.ply")
 
 
 def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
@@ -40,15 +40,15 @@ def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     if diff_func:
         print(f"Diff ({args.diff_metric}) between result BPS and input parent mesh:")
         diff_ = diff_func(surface_rendered, parent)
-        io.write_json(output_dir / "diff.json", {"submesh": diff.summary(diff_)})
+        io.write_json({"submesh": diff.summary(diff_)}, output_dir / "diff.json")
         _add_diff_colors(surface_rendered, diff_)
 
     if args.visualize:
         mesh.show(surface_rendered)
 
     io.write_mesh(
-        output_dir / "bps-submesh.ply",
         surface_rendered,
+        output_dir / "bps-submesh.ply",
         write_vertex_colors=True,
     )
 
@@ -75,7 +75,7 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
         frame_pair = submesh.new_frame(pair, frame_parent)
 
         # Save the new proxy.
-        io.write_mesh(output_dir / f"frame-proxy-{i}.ply", frame_pair.child)
+        io.write_mesh(frame_pair.child, output_dir / f"frame-proxy-{i}.ply")
 
         # Construct BPS according to selected coefficient transfer method.
         if args.method == "individual":
@@ -107,7 +107,7 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
             diffs[f"{i}"] = diff.summary(diff_)
             _add_diff_colors(frame_bps_rendered, diff_)
 
-        io.write_mesh(output_dir / f"frame-bps-{i}.ply", frame_bps_rendered)
+        io.write_mesh(frame_bps_rendered, output_dir / f"frame-bps-{i}.ply")
 
     # Save diffs.
     if diff_func:
@@ -117,7 +117,7 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
                 parent,
             )
         )
-        io.write_json(output_dir / "frame-diff.json", diffs)
+        io.write_json(diffs, output_dir / "frame-diff.json")
 
     if args.visualize:
         for m in rendered_meshes:
@@ -141,4 +141,4 @@ def plot_diffs(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     """Plot diff data from JSON files."""
     data = [io.read_json(path) for path in args.diff_paths]
     fig = plot.diff_comparison(data, args.dataset_names or range(len(data)))
-    io.write_figure(output_dir / "diff.svg", fig)
+    io.write_figure(fig, output_dir / "diff.svg")

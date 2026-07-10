@@ -24,7 +24,7 @@ def read_json(path: pathlib.Path) -> dict:
         return json.load(f)
 
 
-def write_json(path: pathlib.Path, data: dict) -> None:
+def write_json(data: dict, path: pathlib.Path) -> None:
     """Write `data` to a json file."""
     print(f"Writing data to {path}")
     with path.open("w") as f:
@@ -38,7 +38,7 @@ def read_mesh(path: pathlib.Path) -> mesh.TriangleMesh:
 
 
 def write_mesh(
-    path: pathlib.Path, mesh: mesh.TriangleMesh, write_vertex_colors: bool = False
+    mesh: mesh.TriangleMesh, path: pathlib.Path, write_vertex_colors: bool = False
 ) -> None:
     """Write a mesh to a file."""
     print(f"Writing mesh to {path}")
@@ -51,7 +51,7 @@ def write_mesh(
     )
 
 
-def write_figure(path: pathlib.Path, figure: plt.Figure) -> None:
+def write_figure(figure: plt.Figure, path: pathlib.Path) -> None:
     """Write a matplotlib figure."""
     print(f"Writing figure to {path}")
     figure.savefig(path)
