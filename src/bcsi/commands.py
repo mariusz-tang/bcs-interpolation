@@ -25,6 +25,13 @@ def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     io.write_mesh(surface_rendered, output_dir / "bps.ply")
 
 
+def show_mesh(args: argparse.Namespace, _: pathlib.Path) -> None:
+    """Open a mesh in an interactive visualizer window."""
+    mesh_ = io.read_mesh(args.mesh_path)
+    mesh_.open3d.compute_vertex_normals()
+    mesh.show(mesh_)
+
+
 def create_submesh(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     """Create a suitable submesh from a parent mesh."""
     mesh_ = io.read_mesh(args.mesh_path)
