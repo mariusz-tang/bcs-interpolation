@@ -80,7 +80,11 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
         frame_pairs.append(frame_pair)
 
         # Save the new proxy.
-        io.write_mesh(frame_pair.child, output_dir / f"frame-proxy-{i}.ply")
+        io.write_mesh(
+            frame_pair.child,
+            output_dir / f"frame-proxy-{i}.ply",
+            write_vertex_colors=True,
+        )
 
     # Construct BPSs for each frame.
     if args.method == "use-reference":
@@ -114,7 +118,9 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
             diffs[f"{i}"] = diff.summary(diff_)
             _add_diff_colors(bps_rendered, diff_)
 
-        io.write_mesh(bps_rendered, output_dir / f"frame-bps-{i}.ply")
+        io.write_mesh(
+            bps_rendered, output_dir / f"frame-bps-{i}.ply", write_vertex_colors=True
+        )
 
     # Save diffs.
     if diff_func:
