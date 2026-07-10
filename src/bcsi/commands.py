@@ -82,6 +82,10 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
         )
     elif args.method == "mean-simple":
         frame_bpss = _construct_bps_list_from_mean(reference_pair, frame_pairs, args)
+    elif args.method == "mean-weighted":
+        frame_bpss = _construct_bps_list_from_weighted_mean(
+            reference_pair, frame_pairs, args
+        )
     else:
         frame_bpss = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
@@ -180,6 +184,39 @@ def _construct_bps_list_from_mean(
 
     # +1 to account for the reference pair.
     mean_coeffs = sum_coeffs / (len(frame_pairs) + 1)
+
+    # Override coefficients with the mean.
+    for bps_ in bps_list:
+        bps_.coefficients = mean_coeffs
+
+    return bps_list
+
+
+def _construct_bps_list_from_weighted_mean(
+    reference_pair: submesh.Pair,
+    frame_pairs: list[submesh.Pair],
+    args: argparse.Namespace,
+) -> list[bps.BlendedPolynomialSurface]:
+    bps_list = []
+    reference_bps = submesh.create_bps_degree_one(
+        reference_pair, args.degree, args.scale, args.beta
+    )
+    # Weight the mean by the local scale at each vertex.
+    sum_coeffs = reference_bps.coefficients * reference_bps.vertex_scales[:, None, None]
+    weights = reference_bps.vertex_scales[:, None, None].clone()
+
+    # Calculate coefficients from each individual pair.
+    for pair in frame_pairs:
+        frame_bps = submesh.create_bps_degree_one(
+            pair, args.degree, args.scale, args.beta
+        )
+        cache.bps_onerings(args.submesh_path.name, frame_bps)
+        weight = frame_bps.vertex_scales[:, None, None]
+        sum_coeffs += frame_bps.coefficients * weight
+        weights += weight
+        bps_list.append(frame_bps)
+
+    mean_coeffs = sum_coeffs / weights
 
     # Override coefficients with the mean.
     for bps_ in bps_list:
