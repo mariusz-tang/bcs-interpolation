@@ -31,22 +31,19 @@ def diff_comparison(data: Sequence[dict], dataset_names: Collection) -> plt.Figu
             stds[name].append(entry["std"])
 
     fig, _ = plt.subplots(2, 2, layout="constrained")
-    plt.subplot(221).grouped_bar(maxes, tick_labels=labels)
-    plt.subplot(221).set_title("max")
-    plt.subplot(221).set_xlabel("frame")
+
+    def _subplot(position: int, data: dict, title: str) -> None:
+        ax = plt.subplot(position)
+        ax.grouped_bar(data, tick_labels=labels)
+        ax.set_title(title)
+        ax.set_xlabel("frame")
+
+    _subplot(221, maxes, "max")
+    # Draw the legend at this point to prevent duplicate keys.
     fig.legend()
-
-    plt.subplot(222).grouped_bar(means, tick_labels=labels)
-    plt.subplot(222).set_title("mean")
-    plt.subplot(222).set_xlabel("frame")
-
-    plt.subplot(223).grouped_bar(medians, tick_labels=labels)
-    plt.subplot(223).set_title("median")
-    plt.subplot(223).set_xlabel("frame")
-
-    plt.subplot(224).grouped_bar(stds, tick_labels=labels)
-    plt.subplot(224).set_title("std")
-    plt.subplot(224).set_xlabel("frame")
+    _subplot(222, means, "mean")
+    _subplot(223, medians, "median")
+    _subplot(224, stds, "std")
 
     return fig
 
