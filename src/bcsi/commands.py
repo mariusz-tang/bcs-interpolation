@@ -57,57 +57,51 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     """Create poses from fine meshes and a coarse proxy mesh."""
     child = io.read_mesh(args.submesh_path)
     parent = io.read_mesh(args.parent_mesh_path)
-    pair = submesh.Pair(child, parent)
+    reference_pair = submesh.Pair(child, parent)
 
     reference_bps = submesh.create_bps_degree_one(
-        pair, args.degree, args.scale, args.beta
+        reference_pair, args.degree, args.scale, args.beta
     )
     cache.bps_onerings(args.submesh_path.name, reference_bps)
 
-    diffs = {}
-    rendered_meshes = []
-
-    diff_func = _diff_functions[args.diff_metric]
-
+    # Construct pairs for each frame.
+    frame_pairs = []
     for i, frame_path in enumerate(args.frame_paths):
         # Make new submesh pair.
         frame_parent = io.read_mesh(frame_path)
-        frame_pair = submesh.new_frame(pair, frame_parent)
+        frame_pair = submesh.new_frame(reference_pair, frame_parent)
+        frame_pairs.append(frame_pair)
 
         # Save the new proxy.
         io.write_mesh(frame_pair.child, output_dir / f"frame-proxy-{i}.ply")
 
-        # Construct BPS according to selected coefficient transfer method.
-        if args.method == "individual":
-            frame_bps = submesh.create_bps_degree_one(
-                frame_pair, args.degree, args.scale, args.beta
-            )
-        elif args.method == "use-reference":
-            frame_bps = bps.BlendedPolynomialSurface(
-                frame_pair.child,
-                args.degree,
-                args.scale,
-                reference_bps.coefficients,
-                args.beta,
-            )
-
-        # Recover onering data from cache.
-        cache.bps_onerings(args.submesh_path.name, frame_bps)
-
-        # Render the new BPS and save it.
-        frame_bps_rendered = render.blended_polynomial_surface(
-            frame_bps, resolution=args.resolution
+    # Construct BPSs for each frame.
+    if args.method == "use-reference":
+        frame_bpss = _construct_bps_list_from_reference(
+            reference_pair, frame_pairs, args
         )
-        frame_bps_rendered.open3d.compute_vertex_normals()
-        rendered_meshes.append(frame_bps_rendered)
+    else:
+        frame_bpss = _construct_bps_list_individual(reference_pair, frame_pairs, args)
+
+    diff_func = _diff_functions[args.diff_metric]
+    diffs = {}
+    rendered_meshes = []
+
+    for i, (bps_, pair) in enumerate(zip(frame_bpss, frame_pairs, strict=True)):
+        # Render the new BPS and save it.
+        bps_rendered = render.blended_polynomial_surface(
+            bps_, resolution=args.resolution
+        )
+        bps_rendered.open3d.compute_vertex_normals()
+        rendered_meshes.append(bps_rendered)
 
         # Save the diff for display at the end.
         if diff_func:
-            diff_ = diff_func(frame_bps_rendered, frame_parent)
+            diff_ = diff_func(bps_rendered, pair.parent)
             diffs[f"{i}"] = diff.summary(diff_)
-            _add_diff_colors(frame_bps_rendered, diff_)
+            _add_diff_colors(bps_rendered, diff_)
 
-        io.write_mesh(frame_bps_rendered, output_dir / f"frame-bps-{i}.ply")
+        io.write_mesh(bps_rendered, output_dir / f"frame-bps-{i}.ply")
 
     # Save diffs.
     if diff_func:
@@ -122,6 +116,44 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     if args.visualize:
         for m in rendered_meshes:
             mesh.show(m)
+
+
+def _construct_bps_list_individual(
+    _: submesh.Pair,
+    frame_pairs: list[submesh.Pair],
+    args: argparse.Namespace,
+) -> list[bps.BlendedPolynomialSurface]:
+    bps_list = []
+    for pair in frame_pairs:
+        frame_bps = submesh.create_bps_degree_one(
+            pair, args.degree, args.scale, args.beta
+        )
+        cache.bps_onerings(args.submesh_path.name, frame_bps)
+        bps_list.append(frame_bps)
+    return bps_list
+
+
+def _construct_bps_list_from_reference(
+    reference_pair: submesh.Pair,
+    frame_pairs: list[submesh.Pair],
+    args: argparse.Namespace,
+) -> list[bps.BlendedPolynomialSurface]:
+    bps_list = []
+    reference_bps = submesh.create_bps_degree_one(
+        reference_pair, args.degree, args.scale, args.beta
+    )
+    for pair in frame_pairs:
+        frame_bps = bps.BlendedPolynomialSurface(
+            pair.child,
+            args.degree,
+            args.scale,
+            reference_bps.coefficients,
+            args.beta,
+        )
+        cache.bps_onerings(args.submesh_path.name, frame_bps)
+        bps_list.append(frame_bps)
+
+    return bps_list
 
 
 _diff_functions = {
