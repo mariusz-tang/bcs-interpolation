@@ -37,11 +37,12 @@ def diff_comparison(data: Sequence[dict], dataset_names: Collection) -> plt.Figu
         ax.grouped_bar(data, tick_labels=labels)
         ax.set_title(title)
         ax.set_xlabel("frame")
+        ax.set_yscale("log")
 
-    _subplot(221, maxes, "max")
+    _subplot(221, means, "mean")
     # Draw the legend at this point to prevent duplicate keys.
     fig.legend()
-    _subplot(222, means, "mean")
+    _subplot(222, maxes, "max")
     _subplot(223, medians, "median")
     _subplot(224, stds, "std")
 
