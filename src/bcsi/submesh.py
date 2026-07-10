@@ -5,6 +5,7 @@ We refer to the submeshes as 'children' and the original meshes as 'parents'.
 
 from functools import cached_property
 
+import open3d as o3d
 import torch
 
 from bcsi import bps, mesh
@@ -48,6 +49,36 @@ class Pair:
             )
 
         return result
+
+
+def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh:
+    """Create a suitable 'child' submesh from a `parent` mesh.
+
+    :param scale: a float between 0 and 1 (exclusive) which represents the
+    target number of triangles in the result, as a fraction of the number of
+    triangles in `parent`.
+
+    This function works by decimating the parent, snapping the resulting
+    vertices to vertices in the parent, and then merging duplicate vertices.
+    """
+    if not 0 < scale < 1:
+        raise ValueError(
+            f"scale should be between 0 and 1 (exclusive), received {scale}"
+        )
+
+    child_unaligned = o3d.t.geometry.TriangleMesh.from_legacy(
+        parent.open3d.simplify_quadric_decimation(int(parent.num_triangles * scale))
+    )
+    parent_verts = o3d.core.Tensor(parent.vertices.float().numpy())
+    nns = o3d.core.nns.NearestNeighborSearch(parent_verts)
+    nns.knn_index()
+    closest_point_ids, _ = nns.knn_search(child_unaligned.vertex.positions, 1)
+
+    closest_points = parent_verts[closest_point_ids[:, 0]]
+    child_o3d = o3d.t.geometry.TriangleMesh(
+        closest_points, child_unaligned.triangle.indices
+    )
+    return mesh.TriangleMesh(child_o3d.to_legacy()).merge_close_vertices(eps=1e-6)
 
 
 def new_frame(

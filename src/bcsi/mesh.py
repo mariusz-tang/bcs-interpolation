@@ -90,6 +90,7 @@ class TriangleMesh:
         Acts in-place and returns `self`.
         """
         self._mesh.merge_close_vertices(eps)
+        self._mesh.remove_degenerate_triangles()
         self._clear()
         return self
 

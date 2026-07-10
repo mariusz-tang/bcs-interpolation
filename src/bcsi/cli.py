@@ -72,6 +72,24 @@ def get_parser() -> argparse.ArgumentParser:
     )
     create_bps.set_defaults(func_name="initialize_bps")
 
+    create_submesh = subparsers.add_parser(
+        "create-submesh",
+        parents=[base_parser],
+        help="create a suitable submesh from a fine parent mesh",
+        description="Create a submesh from a fine parent mesh. The vertex set "
+        "of the result will be a subset of the vertex set of the input.",
+    )
+    create_submesh.add_argument(
+        "mesh_path", help="path to input mesh file", type=pathlib.Path
+    )
+    create_submesh.add_argument(
+        "--scale",
+        help="fraction of triangles to keep from the input mesh (default: 0.1)",
+        type=float,
+        default=0.1,
+    )
+    create_submesh.set_defaults(func_name="create_submesh")
+
     submesh_bps = subparsers.add_parser(
         "submesh-bps",
         parents=[base_parser, bps_parser, diff_parser],
