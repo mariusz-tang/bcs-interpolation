@@ -111,7 +111,7 @@ def get_parser() -> argparse.ArgumentParser:
     create_submesh_frames.add_argument(
         "--method",
         help="method of coefficient transfer between frames (default: individual)",
-        choices=["individual", "use-reference"],
+        choices=["individual", "use-reference", "mean-simple"],
         default="individual",
     )
     create_submesh_frames.set_defaults(func_name="create_submesh_frames")
