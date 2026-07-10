@@ -123,7 +123,13 @@ def get_parser() -> argparse.ArgumentParser:
         description="Plot diff data produced by other commands.",
     )
     plot_diff_parser.add_argument(
-        "diff_path", help="path to diff JSON file", type=pathlib.Path
+        "diff_paths", nargs="+", help="paths to diff JSON files", type=pathlib.Path
+    )
+    plot_diff_parser.add_argument(
+        "--dataset-names",
+        nargs="+",
+        help="names to assign to each JSON file (default: integers starting from 0)",
+        type=pathlib.Path,
     )
     plot_diff_parser.set_defaults(func_name="plot_diffs")
 

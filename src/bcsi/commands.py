@@ -139,6 +139,6 @@ def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
 
 def plot_diffs(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     """Plot diff data from JSON files."""
-    data = io.read_json(args.diff_path)
-    fig = plot.diff_comparison(data)
+    data = [io.read_json(path) for path in args.diff_paths]
+    fig = plot.diff_comparison(data, args.dataset_names or range(len(data)))
     io.write_figure(output_dir / "diff.svg", fig)
