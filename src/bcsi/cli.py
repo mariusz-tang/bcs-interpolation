@@ -88,6 +88,12 @@ def get_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.1,
     )
+    create_submesh.add_argument(
+        "--visualize",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="whether or not to show the submesh (default: false)",
+    )
     create_submesh.set_defaults(func_name="create_submesh")
 
     show_mesh = subparsers.add_parser(

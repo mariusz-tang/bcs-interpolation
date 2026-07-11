@@ -37,6 +37,9 @@ def create_submesh(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     mesh_ = io.read_mesh(args.mesh_path)
     child = submesh.create_submesh(mesh_, args.scale)
     io.write_mesh(child, output_dir / "submesh.ply")
+    if args.visualize:
+        mesh_.open3d.compute_vertex_normals()
+        mesh.show(mesh_)
 
 
 def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
