@@ -71,7 +71,11 @@ class TriangleMesh:
             return TriangleMesh(self.open3d + other.open3d)
         return NotImplemented
 
-    def _clear(self) -> None:
+    def clear_cache(self) -> None:
+        """Clear cached properties.
+
+        Useful if the underlying mesh is changed.
+        """
         self.__dict__.pop("vertices", None)
         self.__dict__.pop("triangles", None)
         self.__dict__.pop("vertex_normals", None)
@@ -91,7 +95,7 @@ class TriangleMesh:
         """
         self._mesh.merge_close_vertices(eps)
         self._mesh.remove_degenerate_triangles()
-        self._clear()
+        self.clear_cache()
         return self
 
     def set_vertex_colors(self, colors: torch.Tensor) -> None:
