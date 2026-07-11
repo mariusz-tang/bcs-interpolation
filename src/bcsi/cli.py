@@ -91,7 +91,7 @@ def get_parser() -> argparse.ArgumentParser:
     create_submesh.set_defaults(func_name="create_submesh")
 
     show_mesh = subparsers.add_parser(
-        "show_mesh",
+        "show-mesh",
         parents=[base_parser, bps_parser, diff_parser],
         help="open a mesh in an interactive window",
         description="Open a mesh in an interactive window.",
