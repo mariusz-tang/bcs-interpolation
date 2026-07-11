@@ -32,11 +32,11 @@ def show_mesh(args: argparse.Namespace, _: pathlib.Path) -> None:
     mesh.show(mesh_)
 
 
-def create_submesh(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
+def create_submesh(args: argparse.Namespace, output_name: str) -> None:
     """Create a suitable submesh from a parent mesh."""
     mesh_ = io.read_mesh(args.mesh_path)
     child = submesh.create_submesh(mesh_, args.scale)
-    io.write_mesh(child, output_dir / "submesh.ply")
+    io.write_mesh(child, io.output_dir() / f"{output_name}-submesh.ply")
     if args.visualize:
         mesh_.open3d.compute_vertex_normals()
         mesh.show(mesh_)
@@ -261,8 +261,8 @@ def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
     mesh_.set_vertex_colors(colors)
 
 
-def plot_diffs(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
+def plot_diffs(args: argparse.Namespace, output_name: str) -> None:
     """Plot diff data from JSON files."""
     data = [io.read_json(path) for path in args.diff_paths]
     fig = plot.diff_comparison(data, args.dataset_names or range(len(data)))
-    io.write_figure(fig, output_dir / "diff.svg")
+    io.write_figure(fig, io.output_dir() / f"diff-{output_name}.svg")

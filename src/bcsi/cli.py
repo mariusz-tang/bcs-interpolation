@@ -14,9 +14,9 @@ def get_parser() -> argparse.ArgumentParser:
     base_parser.add_argument(
         "--output-name",
         default="result",
-        help="name of directory in ./output/ in which to place output files "
-        "(default: 'result')",
+        help="name to associate with output files (default: 'result')",
     )
+    base_parser.set_defaults(outfile=False)
 
     bps_parser = argparse.ArgumentParser(add_help=False)
     bps_parser.add_argument(
@@ -94,7 +94,7 @@ def get_parser() -> argparse.ArgumentParser:
         default=False,
         help="whether or not to show the submesh (default: false)",
     )
-    create_submesh.set_defaults(func_name="create_submesh")
+    create_submesh.set_defaults(outfile=True, func_name="create_submesh")
 
     show_mesh = subparsers.add_parser(
         "show-mesh",
@@ -164,7 +164,7 @@ def get_parser() -> argparse.ArgumentParser:
         help="names to assign to each JSON file (default: integers starting from 0)",
         type=pathlib.Path,
     )
-    plot_diff_parser.set_defaults(func_name="plot_diffs")
+    plot_diff_parser.set_defaults(outfile=True, func_name="plot_diffs")
 
     return parser
 
@@ -185,4 +185,5 @@ def main() -> None:
     from bcsi import commands, io
 
     command_func = getattr(commands, args.func_name)
-    command_func(args, io.output_dir(args.output_name))
+    output_path = args.output_name if args.outfile else io.output_dir(args.output_name)
+    command_func(args, output_path)

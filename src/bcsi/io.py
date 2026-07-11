@@ -11,9 +11,12 @@ from bcsi import mesh
 ROOT_DIR = pathlib.Path(__file__).parent.parent.parent
 
 
-def output_dir(name: str) -> pathlib.Path:
-    """Get an output directory with the given `name`, creating it if necessary."""
-    output_dir = ROOT_DIR / "output" / name
+def output_dir(name: str | None = None) -> pathlib.Path:
+    """Get an output directory with the given `name`, creating it if necessary.
+
+    If `name` is none, returns the root output directory.
+    """
+    output_dir = ROOT_DIR / "output" / name if name else ROOT_DIR / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
