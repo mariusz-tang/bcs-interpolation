@@ -78,7 +78,9 @@ def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh
     child_o3d = o3d.t.geometry.TriangleMesh(
         closest_points, child_unaligned.triangle.indices
     )
-    return mesh.TriangleMesh(child_o3d.to_legacy()).merge_close_vertices(eps=1e-6)
+    child = mesh.TriangleMesh(child_o3d.to_legacy())
+    child.open3d.remove_non_manifold_edges()
+    return child.merge_close_vertices(eps=1e-6)
 
 
 def new_frame(
