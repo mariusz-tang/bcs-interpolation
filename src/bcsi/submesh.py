@@ -79,7 +79,7 @@ def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh
         closest_points, child_unaligned.triangle.indices
     )
     child = mesh.TriangleMesh(child_o3d.to_legacy())
-    child.merge_close_vertices(eps=1e-6)
+    child.open3d.remove_duplicated_vertices()
     child.open3d.remove_non_manifold_edges()
     while non_manifold_ids := list(child.open3d.get_non_manifold_vertices()):
         child.open3d.remove_vertices_by_index(non_manifold_ids)
