@@ -4,7 +4,10 @@ As given in Geometric Modeling in Shape Space:
 https://graphics.stanford.edu/~niloy/research/docs/shape_space_sig_07.pdf
 """
 
+from functools import partial
+
 import torch
+import torchmin
 
 from bcsi import mesh
 
@@ -34,3 +37,17 @@ def residue(
 
     diff = deformation_field - rigid_deformation_field.reshape(-1)
     return torch.linalg.norm(diff)
+
+
+def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
+    """Calculate the raw (before regularization) ARAP shape space metric.
+
+    This is simply the minimum residue between the deformation field and rigid
+    component, for all possible rigid components.
+    """
+    result = torchmin.minimize(
+        partial(residue, mesh=mesh, deformation_field=deformation_field),
+        torch.zeros(6),
+        "newton-cg",
+    )
+    return result.fun
