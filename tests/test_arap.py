@@ -46,3 +46,12 @@ def test_raw_zero_on_rigid_deformation(
     assert arap.raw(cube_mesh, deformation_field.reshape(-1)) == pytest.approx(
         0, abs=1e-6
     )
+
+
+def test_l2() -> None:
+    mesh_ = mesh.from_tensors(
+        torch.tensor([[0, 0, 0], [0, 0, 1], [0, 1, 0]]), torch.tensor([[0, 1, 2]])
+    )
+    deformation_field = torch.tensor([0, 0, 1, 0, 1, 0, 1, 0, 0]).float()
+
+    assert arap.l2(mesh_, deformation_field) == pytest.approx(0.5)

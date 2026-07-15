@@ -51,3 +51,17 @@ def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tenso
         "newton-cg",
     )
     return result.fun
+
+
+def l2(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
+    """Calculate the L2 shape space metric regularization term."""
+    plain_l2 = torch.linalg.norm(deformation_field.reshape(-1, 3), dim=-1)
+    vertex_areas = mesh.trivert_adjacency_matrix.float() @ mesh.triangle_areas
+    return torch.sum(plain_l2 * vertex_areas / 3)
+
+
+def metric(
+    mesh: mesh.TriangleMesh, deformation_field: torch.Tensor, lamda: float
+) -> torch.Tensor:
+    """Calculate the full, regularized ARAP metric."""
+    return raw(mesh, deformation_field) + lamda * l2(mesh, deformation_field)
