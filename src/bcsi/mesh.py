@@ -102,6 +102,24 @@ class TriangleMesh:
         """Set vertex colors on the underlying open3d mesh."""
         self._mesh.vertex_colors = o3d.utility.Vector3dVector(colors.numpy())
 
+    @cached_property
+    def triangle_areas(self) -> torch.Tensor:
+        """Tensor storing the area of each triangle."""
+        mesh_modern = o3d.t.geometry.TriangleMesh.from_legacy(self._mesh)
+        mesh_modern.compute_triangle_areas()
+        return torch.tensor(mesh_modern.triangle.areas.numpy())
+
+    @cached_property
+    def trivert_adjacency_matrix(self) -> torch.Tensor:
+        """Tensor representing vertex-triangle adjacency.
+
+        Each row represents a vertex, with a 1 in each position corresponding
+        to a triangle adjacent to the vertex, and a 0 everywhere else.
+        """
+        vertex_indices = torch.arange(self.num_vertices)[:, None, None]
+        triangles = self.triangles[None, :, :]
+        return (triangles == vertex_indices).any(dim=-1).long()
+
 
 def _tensor(
     a: o3d.utility.Vector3dVector | o3d.utility.Vector3iVector,
