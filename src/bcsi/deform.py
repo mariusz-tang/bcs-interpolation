@@ -1,0 +1,333 @@
+"""Deformation fields in BPS space and shape space.
+
+Deformations are assumed to be linear between frames.
+"""
+
+import torch
+
+from bcsi import bps, mesh, polynomial, render, triangle
+
+
+def from_bps(
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
+    frame: bps.BlendedPolynomialSurface,
+    resolution: int,
+) -> tuple[mesh.TriangleMesh, torch.Tensor]:
+    """Convert linear BPS deformation to shape space deformation.
+
+    :param start: BPS at the start of the deformation.
+    :param finish: BPS at the end of the deformation.
+    :param frame: BPS at the current point in the deformation.
+    :param resolution: Number of subdivisions to apply to the triangular patch
+    representing each face in the proxy mesh.
+
+    :returns: The `frame` BPS, rendered at `resolution`, with the corresponding
+    deformation field tensor.
+    """
+    patch = render.triangle_patch(resolution)
+    # Ignore the z coordinate, which is zero everywhere.
+    patch_coordinates = patch.vertices[:, :2]
+    # Calculate all vertex positions and flatten the result.
+    vertices = start.get_blended_patch_vertices(patch_coordinates).reshape(-1, 3)
+
+    # Duplicate the topology tensor for each patch, increasing the vertex indices
+    # by the number of vertices per patch each time. Finally, flatten the result.
+    triangles = (
+        patch.triangles.tile(start.proxy.num_triangles, 1, 1)
+        + torch.ones(start.proxy.num_triangles, patch.num_triangles, 3)
+        * torch.arange(start.proxy.num_triangles)[:, None, None]
+        * patch.num_vertices
+    ).reshape(-1, 3)
+
+    # Construct the rendered mesh
+    rendered_mesh = mesh.from_tensors(vertices, triangles)
+
+    # Calculate deformation field and flatten the result.
+    dv_dt = finish.proxy.vertices - start.proxy.vertices
+    dcoeffs_dt = finish.coefficients - start.coefficients
+    dp_dt = blended_patch_derivatives(
+        dv_dt, dcoeffs_dt, frame, patch_coordinates
+    ).reshape(-1, 3)
+
+    # Store the deformation field in the vertex colors. This is so we can
+    # associate each vertex with its deformation vector before merging vertices.
+    rendered_mesh.vertex_colors = dp_dt
+    rendered_mesh.merge_close_vertices(eps=1e-6)
+
+    # Extract the deformation field.
+    deformation_field = rendered_mesh.vertex_colors.flatten()
+
+    # Merge the patches into one cohesive mesh.
+    return rendered_mesh, deformation_field
+
+
+def blended_patch_derivatives(
+    dv_dt: torch.Tensor,
+    dcoeffs_dt: torch.Tensor,
+    frame: bps.BlendedPolynomialSurface,
+    vertices: torch.Tensor,
+) -> torch.Tensor:
+    """Evaluate patch derivates between BPS meshes at specified vertices.
+
+    This function is equivalent to
+    `bps.BlendedPolynomialSurface.get_blended_patch_vertices()`, where the
+    patches are substituted for their derivatives with respect to time.
+    """
+    unblended = unblended_patch_derivatives(dv_dt, dcoeffs_dt, frame, vertices)
+    blend_coefficients = triangle.blend_coefficients(vertices, frame.beta).double()
+    return torch.einsum("tpvd,vp->tvd", unblended, blend_coefficients)
+
+
+def unblended_patch_derivatives(
+    dv_dt: torch.Tensor,
+    dcoeffs_dt: torch.Tensor,
+    frame: bps.BlendedPolynomialSurface,
+    vertices: torch.Tensor,
+) -> torch.Tensor:
+    """Evaluate patch derivates between BPS meshes at specified vertices.
+
+    This function is equivalent to
+    `bps.BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
+    patches are substituted for their derivatives with respect to time.
+    """
+    onering_coords = frame.get_onering_coordinates(vertices)
+    r = onering_coords[..., 0]
+    theta = onering_coords[..., 1]
+
+    x = r * torch.cos(theta)
+    y = r * torch.sin(theta)
+    basis = polynomial.basis(x, y, frame.degree).float()
+
+    origin_vertex_ids = frame.proxy.triangles
+
+    # The einsum indices represent:
+    # t: triangle
+    # p: perspective (vertex at the centre of one-ring)
+    # d: dimension (output dimension x/y/z)
+    # c: coefficient
+    # v: input vertex
+    # i: row
+    # j: column
+    coefficients = frame.coefficients[origin_vertex_ids]
+    m = torch.einsum("tpdc,tvpc->tvpd", coefficients, basis)  # tvpd
+    dm_dt = patch_derivatives_function(dcoeffs_dt, frame, vertices)  # tvpd
+
+    r_ = frame.vertex_rotations[origin_vertex_ids]  # tpij
+    dr_dt = vertex_rotations_derivative(dv_dt, frame.proxy)[origin_vertex_ids]  # tpij
+
+    s = frame.vertex_scales[origin_vertex_ids, None, None]  # tv
+    ds_dt = vertex_scales_derivative(dv_dt, frame)[origin_vertex_ids, None, None]  # tv
+
+    ds_term = ds_dt * torch.einsum("tpij,tvpj->tpvi", r_, m)
+    dr_term = s * torch.einsum("tpij,tvpj->tpvi", dr_dt, m)
+    dm_term = s * torch.einsum("tpij,tvpj->tpvi", r_, dm_dt)
+    dv_term = dv_dt[origin_vertex_ids][:, :, None, :]
+
+    return ds_term + dr_term + dm_term + dv_term
+
+
+def patch_derivatives_function(
+    dcoeffs_dt: torch.Tensor,
+    frame: bps.BlendedPolynomialSurface,
+    vertices: torch.Tensor,
+) -> torch.Tensor:
+    """Get a function to evaluate patch derivates between BPS meshes.
+
+    This function is equivalent to
+    `bps.BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
+    patches are substituted for their derivatives with respect to time instead,
+    and the patches are not transformed.
+
+    :param dcoeffs_dt: rate of change of patch coefficients over time at time t.
+    :param frame: BPS at time t.
+    """
+    origin_vertex_ids = frame.proxy.triangles
+    dcoeff_dt = dcoeffs_dt[origin_vertex_ids]
+
+    onering_coords = frame.get_onering_coordinates(vertices)
+    r = onering_coords[..., 0]
+    theta = onering_coords[..., 1]
+
+    x = r * torch.cos(theta)
+    y = r * torch.sin(theta)
+    basis = polynomial.basis(x, y, frame.degree).float()
+
+    # The einsum indices represent:
+    # t: triangle
+    # p: perspective (vertex at the centre of one-ring)
+    # d: dimension (output dimension x/y/z)
+    # c: coefficient
+    # v: input vertex
+    return torch.einsum("tpdc,tvpc->tvpd", dcoeff_dt, basis)
+
+
+def vertex_scales_derivative(
+    dv_dt: torch.Tensor, frame: bps.BlendedPolynomialSurface
+) -> torch.Tensor:
+    """Evaluate the rate of change of vertex scales over time.
+
+    The implementation is based on the related function
+    `bps.BlendedPolynomialSurface.vertex_scales`.
+
+    :param dv_dt: rate of change of proxy vertex positions over time at time t.
+    :param frame: BPS at time t.
+    """
+    # Accumulate edge lengths and counts.
+    edge_length_derivatives = torch.zeros(frame.proxy.num_vertices)
+    edge_counts = torch.zeros(frame.proxy.num_vertices)
+
+    # For each vertex of a face.
+    for i in range(3):
+        # Find the next vertex.
+        j = (i + 1) % 3
+
+        vi = frame.proxy.triangles[:, i]
+        vj = frame.proxy.triangles[:, j]
+        ids = torch.cat([vi, vj])
+
+        # Calculate the edge length derivative.
+        u = frame.proxy.vertices[vi] - frame.proxy.vertices[vj]
+        du_dt = dv_dt[vi] - dv_dt[vj]
+        dmag_u_dt = _derivative_of_norm(u, du_dt).flatten()
+
+        # Repeat the tensor to match the full list of indexes `ids`.
+        dmag_u_dt = dmag_u_dt.float().repeat(2)
+
+        # Update the accumulators.
+        edge_length_derivatives.index_add_(0, ids, dmag_u_dt)
+        edge_counts.index_add_(0, ids, torch.ones_like(dmag_u_dt))
+
+    mean_edge_length = edge_length_derivatives / edge_counts
+
+    return mean_edge_length * frame.global_scale
+
+
+def vertex_rotations_derivative(
+    dv_dt: torch.Tensor, proxy: mesh.TriangleMesh
+) -> torch.Tensor:
+    """Evaluate the rate of change of vertex rotation matrices over time.
+
+    This corresponds to the derivative of the
+    `bps.BlendedPolynomialSurface.vertex_rotations` property.
+
+    :param dv_dt: rate of change of proxy vertex positions over time at time t.
+    :param proxy: proxy at time t.
+    """
+    dnormals_dt = _derivative_of_vertex_normals(dv_dt, proxy)
+    dneighbours_dt, neighbours = _derivative_of_neighbour_directions(
+        dv_dt, dnormals_dt, proxy
+    )
+
+    drotations_dt = torch.zeros(proxy.num_vertices, 3, 3)
+
+    drotations_dt[..., 0] = dneighbours_dt
+    drotations_dt[..., 1] = torch.linalg.cross(
+        proxy.vertex_normals, dneighbours_dt
+    ) + torch.linalg.cross(dnormals_dt, neighbours)
+    drotations_dt[..., 2] = dnormals_dt
+
+    return drotations_dt
+
+
+def _derivative_of_vertex_normals(
+    dv_dt: torch.Tensor, proxy: mesh.TriangleMesh
+) -> torch.Tensor:
+    """Evaluate the rate of change of vertex normals over time.
+
+    The implementation is based on the related function
+    `bps.BlendedPolynomialSurface.vertex_rotations`.
+
+    :param dv_dt: rate of change of proxy vertex positions over time at time t.
+    :param proxy: proxy at time t.
+    """
+    triangle_vertices = proxy.vertices[proxy.triangles].double()
+    x = triangle_vertices[:, 0]
+    y = triangle_vertices[:, 1]
+    z = triangle_vertices[:, 2]
+
+    triangle_v_primes = dv_dt[proxy.triangles].double()
+    x_prime = triangle_v_primes[:, 0]
+    y_prime = triangle_v_primes[:, 1]
+    z_prime = triangle_v_primes[:, 2]
+
+    face_normal_derivatives = torch.linalg.cross(
+        y_prime - x_prime, z - x
+    ) + torch.linalg.cross(y - x, z_prime - x_prime)
+
+    vertex_normal_derivatives = torch.zeros_like(proxy.vertex_normals)
+    vertex_face_counts = torch.zeros(proxy.num_vertices, 1)
+
+    # In the following, we assume that there are no boundary vertices.
+    # For each vertex of a face...
+    for i in range(3):
+        # ...add the normal derivative for that face.
+        vi = proxy.triangles[:, i]
+
+        # Update the accumulators.
+        vertex_normal_derivatives.index_add_(0, vi, face_normal_derivatives)
+        vertex_face_counts.index_add_(0, vi, torch.ones((proxy.num_triangles, 1)))
+
+    vertex_normal_derivatives /= vertex_face_counts
+    return _derivative_of_unit(proxy.vertex_normals, vertex_normal_derivatives)
+
+
+def _derivative_of_neighbour_directions(
+    dv_dt: torch.Tensor, dnormals_dt: torch.Tensor, proxy: mesh.TriangleMesh
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate the rate of change of 'canonical' neighbour directions over time.
+
+    Also returns the neighbour directions themselves.
+
+    The implementation is based on the related function
+    `bps.BlendedPolynomialSurface.vertex_rotations`.
+
+    :param dv_dt: rate of change of proxy vertex positions over time at time t.
+    :param dnormals_dt: rate of change of vertex normals over time at time t.
+    :param proxy: proxy at time t.
+    """
+    neighbour_directions_derivative = torch.zeros_like(proxy.vertices)
+    neighbour_directions = torch.zeros_like(proxy.vertices)
+
+    for vertex_id in range(proxy.num_vertices):
+        vertex = proxy.vertices[vertex_id].double()
+        normal = proxy.vertex_normals[vertex_id]
+
+        # Select the neighbour with the lowest id.
+        neighbour_id = min(proxy.adjacency_list[vertex_id])
+        neighbour = proxy.vertices[neighbour_id]
+
+        # Project the edge onto the tangent plane.
+        diff = neighbour - vertex
+        diff_projected = diff - normal * torch.dot(normal, diff)
+        neighbour_directions[vertex_id] = diff_projected / torch.linalg.norm(
+            diff_projected, dim=-1
+        )
+
+        diff_prime = dv_dt[neighbour_id] - dv_dt[vertex_id]
+        normal_prime = dnormals_dt[vertex_id]
+
+        diff_projected_prime = (
+            diff_prime
+            - torch.linalg.vecdot(normal_prime, diff)[..., None] * normal
+            - torch.linalg.vecdot(normal, diff_prime)[..., None] * normal
+            - torch.linalg.vecdot(normal, diff)[..., None] * normal_prime
+        )
+
+        neighbour_directions_derivative[vertex_id] = _derivative_of_unit(
+            diff_projected, diff_projected_prime
+        )
+
+    return neighbour_directions_derivative, neighbour_directions
+
+
+def _derivative_of_unit(v: torch.Tensor, v_prime: torch.Tensor) -> torch.Tensor:
+    """Calculate the derivative of v/|v|."""
+    norm_v = torch.linalg.norm(v, dim=-1, keepdim=True)
+    return v_prime / norm_v - v * torch.linalg.vecdot(v, v_prime)[..., None] / norm_v**3
+
+
+def _derivative_of_norm(v: torch.Tensor, v_prime: torch.Tensor) -> torch.Tensor:
+    """Calculate the derivative of |v|."""
+    norm_v = torch.linalg.norm(v, dim=-1, keepdim=True)
+    return torch.linalg.vecdot(v, v_prime)[..., None] / norm_v

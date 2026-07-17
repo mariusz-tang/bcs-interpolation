@@ -45,9 +45,11 @@ def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tenso
     This is simply the minimum residue between the deformation field and rigid
     component, for all possible rigid components.
     """
+    # Initialize at the mean translation with no rotation.
+    avg = deformation_field.mean()
     result = torchmin.minimize(
         partial(residue, mesh=mesh, deformation_field=deformation_field),
-        torch.zeros(6),
+        torch.tensor([avg, 0]).float().repeat_interleave(3),
         "newton-cg",
     )
     return result.fun

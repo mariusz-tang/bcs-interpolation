@@ -52,11 +52,24 @@ class TriangleMesh:
     def vertex_normals(self) -> torch.Tensor:
         """Vertex normals, calculated as the average of adjacent face normals.
 
+        The face normals are not normalized before taking the average. The
+        average is normalized to produce the final result.
+
         Shape: (num_vertices, 3)
         """
         if not self._mesh.has_vertex_normals():
             self._mesh.compute_vertex_normals()
         return _tensor(self._mesh.vertex_normals)
+
+    @cached_property
+    def triangle_normals(self) -> torch.Tensor:
+        """Triangle normals.
+
+        Shape: (num_triangles, 3)
+        """
+        if not self._mesh.has_triangle_normals():
+            self._mesh.compute_triangle_normals()
+        return _tensor(self._mesh.triangle_normals)
 
     @cached_property
     def adjacency_list(self) -> list[set[int]]:
@@ -98,7 +111,15 @@ class TriangleMesh:
         self.clear_cache()
         return self
 
-    def set_vertex_colors(self, colors: torch.Tensor) -> None:
+    @property
+    def vertex_colors(self) -> torch.Tensor:
+        """Vertex colors."""
+        if self._mesh.has_vertex_colors():
+            return _tensor(self._mesh.vertex_colors)
+        return torch.zeros_like(self.vertices)
+
+    @vertex_colors.setter
+    def vertex_colors(self, colors: torch.Tensor) -> None:
         """Set vertex colors on the underlying open3d mesh."""
         self._mesh.vertex_colors = o3d.utility.Vector3dVector(colors.numpy())
 
