@@ -92,7 +92,10 @@ class TriangleMesh:
         self.__dict__.pop("vertices", None)
         self.__dict__.pop("triangles", None)
         self.__dict__.pop("vertex_normals", None)
+        self.__dict__.pop("triangle_normals", None)
         self.__dict__.pop("adjacency_list", None)
+        self.__dict__.pop("triangle_areas", None)
+        self.__dict__.pop("trivert_adjacency_matrix", None)
 
     def subdivide_midpoint(self, number_of_iterations: int) -> "TriangleMesh":
         """Subdivide the mesh at edge midpoints.
