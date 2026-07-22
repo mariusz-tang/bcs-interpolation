@@ -290,7 +290,7 @@ def test_triangle_onering_flips(pyramid_mesh: mesh.TriangleMesh) -> None:
         (
             0,
             torch.tensor([[0, 0]]),
-            torch.tensor([[[0, 3 * torch.pi / 2], [1, 2 * torch.pi], [1, 0]]]),
+            torch.tensor([[[0, 0], [1, 0], [1, 0]]]),
         ),
         (
             0,
@@ -298,12 +298,12 @@ def test_triangle_onering_flips(pyramid_mesh: mesh.TriangleMesh) -> None:
             torch.tensor(
                 [
                     [
-                        [[0, 3 * torch.pi / 2], [1, 2 * torch.pi], [1, 0]],
-                        [[0, 3 * torch.pi / 2], [1, 2 * torch.pi], [1, 0]],
+                        [[0, 0], [1, 0], [1, 0]],
+                        [[0, 0], [1, 0], [1, 0]],
                     ],
                     [
-                        [[0, 3 * torch.pi / 2], [1, 2 * torch.pi], [1, 0]],
-                        [[0, 3 * torch.pi / 2], [1, 2 * torch.pi], [1, 0]],
+                        [[0, 0], [1, 0], [1, 0]],
+                        [[0, 0], [1, 0], [1, 0]],
                     ],
                 ]
             ),
@@ -314,9 +314,9 @@ def test_triangle_onering_flips(pyramid_mesh: mesh.TriangleMesh) -> None:
             torch.tensor(
                 [
                     [
-                        [1 / math.sqrt(3), 5 * torch.pi / 4],
-                        [1 / math.sqrt(3), 5 * torch.pi / 3],
-                        [1 / math.sqrt(3), torch.pi / 4],
+                        [-1 / math.sqrt(6), -1 / math.sqrt(6)],
+                        [1 / (2 * math.sqrt(3)), -1 / 2],
+                        [1 / math.sqrt(6), 1 / math.sqrt(6)],
                     ]
                 ]
             ),
@@ -330,9 +330,11 @@ def test_get_onering_coordinates(
     expected_output: torch.Tensor,
 ) -> None:
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
-    result = surface.get_onering_coordinates(vertices)
-    assert result[triangle_id].shape == expected_output.shape
-    assert torch.allclose(result[triangle_id], expected_output.double())
+    x, y = surface.get_onering_coordinates(vertices)
+    assert x[triangle_id].shape == expected_output[..., 0].shape
+    assert y[triangle_id].shape == expected_output[..., 1].shape
+    assert torch.allclose(x[triangle_id], expected_output[..., 0].double(), atol=1e-6)
+    assert torch.allclose(y[triangle_id], expected_output[..., 1].double(), atol=1e-6)
 
 
 def test_get_onering_coordinates_wrong_input_shape_raises(

@@ -299,7 +299,9 @@ class BlendedPolynomialSurface:
         """Valence of each vertex in the proxy mesh."""
         return torch.tensor(list(map(len, self.proxy.adjacency_list)))
 
-    def get_onering_coordinates(self, vertices: torch.Tensor) -> torch.Tensor:
+    def get_onering_coordinates(
+        self, vertices: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Convert from cartesian to onering coordinates on all triangles.
 
         The input vertices should be relative to the 'canonical' equilateral
@@ -307,18 +309,18 @@ class BlendedPolynomialSurface:
         order. Triangles on the proxy have their ordered vertices mapped to the
         canonical triangle vertices in the same order.
 
-        The input should have shape (..., 2). The output will have shape
-        (num_triangles, ..., 3, 2). The second-to-last coordinate represents the
-        vertex at the centre of each one-ring, and the last coordinate corresponds
-        to the r and theta values for each input vertex.
+        The input should have shape (..., 2). The output will be a tuple (x,y)
+        of (num_trianges, ..., 3)-shape tensors. The last coordinate corresponds
+        to the vertex at the centre of each one-ring (the 'perspective').
         """
-        radii = triangle.distances(vertices)
         local_angles = triangle.angles(vertices)
 
         # I use a lot of ugly indexing here, but it works. Possible task for
         # later: figure out how to do this more cleanly.
         ones = [1] * len(local_angles.shape)
         new_dims = [None] * (len(local_angles.shape) - 1)
+
+        radii = triangle.distances(vertices).tile(self.proxy.num_triangles, *ones)
 
         oriented_angles = local_angles.tile(self.proxy.num_triangles, *ones).where(
             self.triangle_onering_flips[:, *new_dims, :] == 1,
@@ -334,13 +336,10 @@ class BlendedPolynomialSurface:
             * 6
         )
 
-        return torch.stack(
-            [
-                radii.tile(self.proxy.num_triangles, *ones),
-                angles,
-            ],
-            dim=-1,
-        )
+        x = radii * torch.cos(angles)
+        y = radii * torch.sin(angles)
+
+        return x, y
 
     def get_unblended_patch_vertices(self, vertices: torch.Tensor) -> torch.Tensor:
         """Convert from cartesian coordinates to unblended patches.
@@ -355,12 +354,7 @@ class BlendedPolynomialSurface:
         vertex at the centre of each one-ring, and the last coordinate corresponds
         to the 3D cartesian coordinates of the output.
         """
-        onering_coords = self.get_onering_coordinates(vertices)
-        r = onering_coords[..., 0]
-        theta = onering_coords[..., 1]
-
-        x = r * torch.cos(theta)
-        y = r * torch.sin(theta)
+        x, y = self.get_onering_coordinates(vertices)
         basis = polynomial.basis(x, y, self.degree)
 
         origin_vertex_ids = self.proxy.triangles

@@ -91,12 +91,7 @@ def unblended_patch_derivatives(
     `bps.BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
     patches are substituted for their derivatives with respect to time.
     """
-    onering_coords = frame.get_onering_coordinates(vertices)
-    r = onering_coords[..., 0]
-    theta = onering_coords[..., 1]
-
-    x = r * torch.cos(theta)
-    y = r * torch.sin(theta)
+    x, y = frame.get_onering_coordinates(vertices)
     basis = polynomial.basis(x, y, frame.degree)
 
     origin_vertex_ids = frame.proxy.triangles
@@ -145,12 +140,7 @@ def patch_derivatives_function(
     origin_vertex_ids = frame.proxy.triangles
     dcoeff_dt = dcoeffs_dt[origin_vertex_ids]
 
-    onering_coords = frame.get_onering_coordinates(vertices)
-    r = onering_coords[..., 0]
-    theta = onering_coords[..., 1]
-
-    x = r * torch.cos(theta)
-    y = r * torch.sin(theta)
+    x, y = frame.get_onering_coordinates(vertices)
     basis = polynomial.basis(x, y, frame.degree)
 
     # The einsum indices represent:
