@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from bcsi import polynomial
+from bcsi.bps import polynomial
 
 
 @pytest.mark.parametrize(

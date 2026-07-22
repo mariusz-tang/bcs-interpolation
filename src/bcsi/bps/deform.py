@@ -1,16 +1,18 @@
-"""Deformation fields in BPS space and shape space.
+"""Conversion from deformation fields in BPS space to shape space.
 
 Deformations are assumed to be linear between frames.
 """
 
 import torch
 
-from bcsi import arap, bps, mesh, polynomial, render, triangle
+from bcsi import mesh
+
+from . import BlendedPolynomialSurface, polynomial, render, triangle
 
 
 def energy(
-    start: bps.BlendedPolynomialSurface,
-    finish: bps.BlendedPolynomialSurface,
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
     resolution: int,
     num_frames: int = 2,
 ) -> torch.Tensor:
@@ -28,20 +30,20 @@ def energy(
 
     total = torch.tensor(0).double()
 
-    current = arap.metric(*from_bps(start, finish, 0, resolution))
+    current = mesh.arap.metric(*bps_to_shape_space(start, finish, 0, resolution))
 
     for i in range(num_frames):
         t = (1 + i) / num_frames
         total += current
-        current = arap.metric(*from_bps(start, finish, t, resolution))
+        current = mesh.arap.metric(*bps_to_shape_space(start, finish, t, resolution))
         total += current
 
     return total
 
 
-def from_bps(
-    start: bps.BlendedPolynomialSurface,
-    finish: bps.BlendedPolynomialSurface,
+def bps_to_shape_space(
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
     t: float,
     resolution: int,
 ) -> tuple[mesh.TriangleMesh, torch.Tensor]:
@@ -61,7 +63,7 @@ def from_bps(
 
     # Construct frame BPS.
     proxy = mesh.from_tensors(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
-    frame = bps.BlendedPolynomialSurface(
+    frame = BlendedPolynomialSurface(
         proxy,
         start.degree,
         start.global_scale,
@@ -110,13 +112,13 @@ def from_bps(
 def blended_patch_derivatives(
     dv_dt: torch.Tensor,
     dcoeffs_dt: torch.Tensor,
-    frame: bps.BlendedPolynomialSurface,
+    frame: BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Evaluate patch derivates between BPS meshes at specified vertices.
 
     This function is equivalent to
-    `bps.BlendedPolynomialSurface.get_blended_patch_vertices()`, where the
+    `BlendedPolynomialSurface.get_blended_patch_vertices()`, where the
     patches are substituted for their derivatives with respect to time.
     """
     unblended = unblended_patch_derivatives(dv_dt, dcoeffs_dt, frame, vertices)
@@ -127,13 +129,13 @@ def blended_patch_derivatives(
 def unblended_patch_derivatives(
     dv_dt: torch.Tensor,
     dcoeffs_dt: torch.Tensor,
-    frame: bps.BlendedPolynomialSurface,
+    frame: BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Evaluate patch derivates between BPS meshes at specified vertices.
 
     This function is equivalent to
-    `bps.BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
+    `BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
     patches are substituted for their derivatives with respect to time.
     """
     x, y = frame.get_onering_coordinates(vertices)
@@ -169,13 +171,13 @@ def unblended_patch_derivatives(
 
 def patch_derivatives_function(
     dcoeffs_dt: torch.Tensor,
-    frame: bps.BlendedPolynomialSurface,
+    frame: BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Get a function to evaluate patch derivates between BPS meshes.
 
     This function is equivalent to
-    `bps.BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
+    `BlendedPolynomialSurface.get_unblended_patch_vertices()`, where the
     patches are substituted for their derivatives with respect to time instead,
     and the patches are not transformed.
 
@@ -198,12 +200,12 @@ def patch_derivatives_function(
 
 
 def vertex_scales_derivative(
-    dv_dt: torch.Tensor, frame: bps.BlendedPolynomialSurface
+    dv_dt: torch.Tensor, frame: BlendedPolynomialSurface
 ) -> torch.Tensor:
     """Evaluate the rate of change of vertex scales over time.
 
     The implementation is based on the related function
-    `bps.BlendedPolynomialSurface.vertex_scales`.
+    `BlendedPolynomialSurface.vertex_scales`.
 
     :param dv_dt: rate of change of proxy vertex positions over time at time t.
     :param frame: BPS at time t.
@@ -244,7 +246,7 @@ def vertex_rotations_derivative(
     """Evaluate the rate of change of vertex rotation matrices over time.
 
     This corresponds to the derivative of the
-    `bps.BlendedPolynomialSurface.vertex_rotations` property.
+    `BlendedPolynomialSurface.vertex_rotations` property.
 
     :param dv_dt: rate of change of proxy vertex positions over time at time t.
     :param proxy: proxy at time t.
@@ -271,7 +273,7 @@ def _derivative_of_vertex_normals(
     """Evaluate the rate of change of vertex normals over time.
 
     The implementation is based on the related function
-    `bps.BlendedPolynomialSurface.vertex_rotations`.
+    `BlendedPolynomialSurface.vertex_rotations`.
 
     :param dv_dt: rate of change of proxy vertex positions over time at time t.
     :param proxy: proxy at time t.
@@ -315,7 +317,7 @@ def _derivative_of_neighbour_directions(
     Also returns the neighbour directions themselves.
 
     The implementation is based on the related function
-    `bps.BlendedPolynomialSurface.vertex_rotations`.
+    `BlendedPolynomialSurface.vertex_rotations`.
 
     :param dv_dt: rate of change of proxy vertex positions over time at time t.
     :param dnormals_dt: rate of change of vertex normals over time at time t.

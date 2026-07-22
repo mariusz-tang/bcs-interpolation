@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from bcsi import arap, mesh
+from bcsi import mesh
+from bcsi.mesh import arap
 
 
 @pytest.mark.parametrize(

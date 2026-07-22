@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from bcsi import mesh, submesh
+from bcsi import mesh
+from bcsi.mesh import submesh
 
 
 # We define the following meshes inline because we need control of the vertex

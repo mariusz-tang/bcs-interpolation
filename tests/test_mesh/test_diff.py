@@ -1,6 +1,7 @@
 import torch
 
-from bcsi import diff, mesh
+from bcsi import mesh
+from bcsi.mesh import diff
 
 
 def test_vertex_to_vertex() -> None:

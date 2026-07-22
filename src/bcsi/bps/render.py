@@ -5,7 +5,9 @@ import math
 import numpy as np
 import torch
 
-from bcsi import bps, mesh
+from bcsi import mesh
+
+from . import BlendedPolynomialSurface
 
 
 def onering_patch(valence: int, resolution: int) -> mesh.TriangleMesh:
@@ -38,8 +40,8 @@ def triangle_patch(resolution: int) -> mesh.TriangleMesh:
     return plane.subdivide_midpoint(resolution)
 
 
-def blended_polynomial_surface(
-    surface: bps.BlendedPolynomialSurface,
+def surface(
+    surface: BlendedPolynomialSurface,
     resolution: int,
 ) -> mesh.TriangleMesh:
     """Convert BPS to polygonal mesh at a given resolution per face.

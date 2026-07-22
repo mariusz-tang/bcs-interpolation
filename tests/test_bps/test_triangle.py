@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from bcsi import triangle
+from bcsi.bps import triangle
 
 
 @pytest.mark.parametrize(

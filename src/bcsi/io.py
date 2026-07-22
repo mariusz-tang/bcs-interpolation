@@ -6,9 +6,7 @@ import pathlib
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-from bcsi import mesh
-
-ROOT_DIR = pathlib.Path(__file__).parent.parent.parent
+from bcsi import ROOT_DIR, mesh
 
 
 def output_dir(name: str | None = None) -> pathlib.Path:

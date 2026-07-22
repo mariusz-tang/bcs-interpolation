@@ -6,7 +6,9 @@ from functools import cached_property
 import open3d as o3d
 import torch
 
-from bcsi import mesh, polynomial, triangle
+from bcsi import mesh
+
+from . import polynomial, triangle
 
 logger = logging.getLogger(__name__)
 

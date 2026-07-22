@@ -8,13 +8,15 @@ from functools import cached_property
 import open3d as o3d
 import torch
 
-from bcsi import bps, mesh
+from bcsi import bps
+
+from . import TriangleMesh, from_tensors
 
 
 class Pair:
     """Represents a parent-child submesh pair."""
 
-    def __init__(self, child: mesh.TriangleMesh, parent: mesh.TriangleMesh) -> None:
+    def __init__(self, child: TriangleMesh, parent: TriangleMesh) -> None:
         """Initialize a parent-child pair.
 
         `child` should be a mesh whose set of vertices is a subset of `parent`'s.
@@ -51,7 +53,7 @@ class Pair:
         return result
 
 
-def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh:
+def create(parent: TriangleMesh, scale: float) -> TriangleMesh:
     """Create a suitable 'child' submesh from a `parent` mesh.
 
     :param scale: a float between 0 and 1 (exclusive) which represents the
@@ -78,7 +80,7 @@ def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh
     child_o3d = o3d.t.geometry.TriangleMesh(
         closest_points, child_unaligned.triangle.indices
     )
-    child = mesh.TriangleMesh(child_o3d.to_legacy())
+    child = TriangleMesh(child_o3d.to_legacy())
     child.open3d.remove_duplicated_vertices()
     child.open3d.remove_non_manifold_edges()
     while non_manifold_ids := list(child.open3d.get_non_manifold_vertices()):
@@ -91,11 +93,11 @@ def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh
 
 def new_frame(
     pair: Pair,
-    new_parent: mesh.TriangleMesh,
+    new_parent: TriangleMesh,
 ) -> Pair:
     """Return a new mesh obtained by posing a child mesh according to a new parent."""
     new_vertices = new_parent.vertices[pair.vertex_correspondences]
-    new_child = mesh.from_tensors(new_vertices, pair.child.triangles)
+    new_child = from_tensors(new_vertices, pair.child.triangles)
     new_pair = Pair(new_child, new_parent)
     # Transfer vertex correspondences since they will be the same.
     new_pair.vertex_correspondences = pair.vertex_correspondences
@@ -107,7 +109,7 @@ def create_bps_degree_one(
     degree: int,
     scale: float,
     beta: float,
-) -> bps.BlendedPolynomialSurface:
+) -> "bps.BlendedPolynomialSurface":
     """Create a BPS from the child of a submesh pair using data from the parent.
 
     The patch functions are unit planes whose normals are determined by the

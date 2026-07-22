@@ -9,12 +9,12 @@ from functools import partial
 import torch
 import torchmin
 
-from bcsi import mesh
+from . import TriangleMesh
 
 
 def residue(
     rigid_component: torch.Tensor,
-    mesh: mesh.TriangleMesh,
+    mesh: TriangleMesh,
     deformation_field: torch.Tensor,
 ) -> torch.Tensor:
     """Calculate the residue of a deformation field relative to a rigid deformation.
@@ -39,7 +39,7 @@ def residue(
     return torch.linalg.norm(diff)
 
 
-def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
+def raw(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     """Calculate the raw (before regularization) ARAP shape space metric.
 
     This is simply the minimum residue between the deformation field and rigid
@@ -55,7 +55,7 @@ def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tenso
     return result.fun
 
 
-def l2(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
+def l2(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     """Calculate the L2 shape space metric regularization term."""
     plain_l2 = torch.linalg.norm(deformation_field.reshape(-1, 3), dim=-1)
     vertex_areas = mesh.trivert_adjacency_matrix.double() @ mesh.triangle_areas
@@ -63,7 +63,7 @@ def l2(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor
 
 
 def metric(
-    mesh: mesh.TriangleMesh, deformation_field: torch.Tensor, lamda: float = 0.001
+    mesh: TriangleMesh, deformation_field: torch.Tensor, lamda: float = 0.001
 ) -> torch.Tensor:
     """Calculate the full, regularized ARAP metric."""
     return raw(mesh, deformation_field) + lamda * l2(mesh, deformation_field)

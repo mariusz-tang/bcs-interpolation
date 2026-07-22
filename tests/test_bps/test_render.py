@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from bcsi import render
+from bcsi.bps import render
 
 
 @pytest.mark.parametrize(

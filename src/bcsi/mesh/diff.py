@@ -4,12 +4,10 @@ import numpy as np
 import open3d as o3d
 import torch
 
-from bcsi import mesh
+from . import TriangleMesh
 
 
-def vertex_to_vertex(
-    source: mesh.TriangleMesh, target: mesh.TriangleMesh
-) -> torch.Tensor:
+def vertex_to_vertex(source: TriangleMesh, target: TriangleMesh) -> torch.Tensor:
     """Distance from each vertex in `source` to the nearest vertex in `target`.
 
     Shape: (num_source_vertices)
@@ -20,9 +18,7 @@ def vertex_to_vertex(
     return torch.tensor(np.asarray(distances_o3d))
 
 
-def vertex_to_mesh(
-    source: mesh.TriangleMesh, target: mesh.TriangleMesh
-) -> torch.Tensor:
+def vertex_to_mesh(source: TriangleMesh, target: TriangleMesh) -> torch.Tensor:
     """Distance from each vertex in `source` to the nearest point on `target`.
 
     Note that the nearest point on `target` is not necessarily a vertex.

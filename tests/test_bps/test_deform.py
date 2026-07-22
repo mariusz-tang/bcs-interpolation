@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from bcsi import bps, deform, mesh
+from bcsi import bps, mesh
 
 
 def test_vertex_scales_derivative() -> None:
@@ -15,7 +15,7 @@ def test_vertex_scales_derivative() -> None:
     finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 1)
 
     dv_dt = finish.proxy.vertices - start.proxy.vertices
-    result = deform.vertex_scales_derivative(dv_dt, start)
+    result = bps.deform.vertex_scales_derivative(dv_dt, start)
 
     assert torch.allclose(
         result,
@@ -42,7 +42,7 @@ def test_patch_derivatives_function() -> None:
 
     dcoeffs_dt = finish.coefficients - start.coefficients
 
-    result = deform.patch_derivatives_function(
+    result = bps.deform.patch_derivatives_function(
         dcoeffs_dt, start, torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]])
     )
 
@@ -61,7 +61,7 @@ def test_vertex_rotations_derivative() -> None:
     finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 1)
 
     dv_dt = finish.proxy.vertices - start.proxy.vertices
-    result = deform.vertex_rotations_derivative(dv_dt, start.proxy)
+    result = bps.deform.vertex_rotations_derivative(dv_dt, start.proxy)
 
     assert torch.allclose(result, torch.zeros_like(result))
 
@@ -78,7 +78,7 @@ def test_unblended_patch_derivatives() -> None:
 
     dcoeffs_dt = finish.coefficients - start.coefficients
 
-    result = deform.unblended_patch_derivatives(
+    result = bps.deform.unblended_patch_derivatives(
         dv_dt, dcoeffs_dt, start, torch.tensor([[0, 0]])
     )
 
@@ -97,7 +97,7 @@ def test_blended_patch_derivatives() -> None:
 
     dcoeffs_dt = finish.coefficients - start.coefficients
 
-    result = deform.blended_patch_derivatives(
+    result = bps.deform.blended_patch_derivatives(
         dv_dt,
         dcoeffs_dt,
         start,
@@ -116,5 +116,5 @@ def test_from_bps_translation_only(t: float) -> None:
     start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 2)
     finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 2)
 
-    m, d = deform.from_bps(start, finish, t, 2)
+    m, d = bps.deform.bps_to_shape_space(start, finish, t, 2)
     assert torch.allclose(d, torch.ones_like(m.vertices).flatten() * 10)
