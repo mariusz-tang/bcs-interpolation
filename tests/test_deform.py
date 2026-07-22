@@ -1,5 +1,6 @@
 import math
 
+import pytest
 import torch
 
 from bcsi import bps, deform, mesh
@@ -106,7 +107,8 @@ def test_blended_patch_derivatives() -> None:
     assert torch.allclose(result, dv_dt[tris])
 
 
-def test_from_bps() -> None:
+@pytest.mark.parametrize("t", torch.arange(-1, 2, 0.1))
+def test_from_bps_translation_only(t: float) -> None:
     v_start = torch.tensor([[0, 0, 0], [1, 0, 0.1], [0, 1, 0.1], [0, 0, 1]])
     v_finish = v_start + 10
     tris = torch.tensor([[0, 1, 2], [0, 2, 3], [0, 3, 1], [2, 1, 3]])
@@ -114,5 +116,5 @@ def test_from_bps() -> None:
     start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 2)
     finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 2)
 
-    m, d = deform.from_bps(start, finish, start, 2)
+    m, d = deform.from_bps(start, finish, t, 2)
     assert torch.allclose(d, torch.ones_like(m.vertices).flatten() * 10)

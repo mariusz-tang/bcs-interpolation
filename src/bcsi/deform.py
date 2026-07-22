@@ -11,32 +11,48 @@ from bcsi import bps, mesh, polynomial, render, triangle
 def from_bps(
     start: bps.BlendedPolynomialSurface,
     finish: bps.BlendedPolynomialSurface,
-    frame: bps.BlendedPolynomialSurface,
+    t: float,
     resolution: int,
 ) -> tuple[mesh.TriangleMesh, torch.Tensor]:
     """Convert linear BPS deformation to shape space deformation.
 
     :param start: BPS at the start of the deformation.
     :param finish: BPS at the end of the deformation.
-    :param frame: BPS at the current point in the deformation.
+    :param t: The current time, used to construct the BPS at the current 'frame'.
     :param resolution: Number of subdivisions to apply to the triangular patch
     representing each face in the proxy mesh.
 
-    :returns: The `frame` BPS, rendered at `resolution`, with the corresponding
+    :returns: The frame BPS, rendered at `resolution`, with the corresponding
     deformation field tensor.
     """
+    dv_dt = finish.proxy.vertices - start.proxy.vertices
+    dcoeffs_dt = finish.coefficients - start.coefficients
+
+    # Construct frame BPS.
+    proxy = mesh.from_tensors(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
+    frame = bps.BlendedPolynomialSurface(
+        proxy,
+        start.degree,
+        start.global_scale,
+        start.coefficients + t * dcoeffs_dt,
+        start.beta,
+    )
+    # Transfer computationally-expensive data which is needed for rendering step.
+    frame.triangle_onering_flips = start.triangle_onering_flips
+    frame.triangle_onering_indices = start.triangle_onering_indices
+
     patch = render.triangle_patch(resolution)
     # Ignore the z coordinate, which is zero everywhere.
     patch_coordinates = patch.vertices[:, :2]
     # Calculate all vertex positions and flatten the result.
-    vertices = start.get_blended_patch_vertices(patch_coordinates).reshape(-1, 3)
+    vertices = frame.get_blended_patch_vertices(patch_coordinates).reshape(-1, 3)
 
     # Duplicate the topology tensor for each patch, increasing the vertex indices
     # by the number of vertices per patch each time. Finally, flatten the result.
     triangles = (
-        patch.triangles.tile(start.proxy.num_triangles, 1, 1)
-        + torch.ones(start.proxy.num_triangles, patch.num_triangles, 3)
-        * torch.arange(start.proxy.num_triangles)[:, None, None]
+        patch.triangles.tile(frame.proxy.num_triangles, 1, 1)
+        + torch.ones(frame.proxy.num_triangles, patch.num_triangles, 3)
+        * torch.arange(frame.proxy.num_triangles)[:, None, None]
         * patch.num_vertices
     ).reshape(-1, 3)
 
@@ -44,8 +60,6 @@ def from_bps(
     rendered_mesh = mesh.from_tensors(vertices, triangles)
 
     # Calculate deformation field and flatten the result.
-    dv_dt = finish.proxy.vertices - start.proxy.vertices
-    dcoeffs_dt = finish.coefficients - start.coefficients
     dp_dt = blended_patch_derivatives(
         dv_dt, dcoeffs_dt, frame, patch_coordinates
     ).reshape(-1, 3)
