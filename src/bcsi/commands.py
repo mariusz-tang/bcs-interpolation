@@ -258,7 +258,7 @@ _diff_functions = {
 def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
     colors = torch.ones_like(mesh_.vertices)
     colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
-    mesh_.set_vertex_colors(colors)
+    mesh_.vertex_colors = colors
 
 
 def plot_diffs(args: argparse.Namespace, output_name: str) -> None:
