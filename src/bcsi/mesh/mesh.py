@@ -134,11 +134,30 @@ class TriangleMesh:
         return torch.tensor(mesh_modern.triangle.areas.numpy()).double()
 
     @cached_property
+    def vertex_areas(self) -> torch.Tensor:
+        """One third the area of the triangles incident to each vertex."""
+        i, j, k = self.triangles.T
+        vi, vj, vk = self.vertices[self.triangles].permute(1, 0, 2)
+        a = vj - vi
+        b = vk - vi
+        triangle_areas = (
+            torch.linalg.vector_norm(torch.linalg.cross(a, b), dim=-1)
+        ) / 2
+        triangle_areas = triangle_areas.repeat(3)
+
+        ids = torch.stack([i, j, k]).flatten()
+        vertex_areas = torch.zeros(self.num_vertices).double()
+        vertex_areas.index_add_(0, ids, triangle_areas)
+        return vertex_areas / 3
+
+    @cached_property
     def trivert_adjacency_matrix(self) -> torch.Tensor:
         """Tensor representing vertex-triangle adjacency.
 
         Each row represents a vertex, with a 1 in each position corresponding
         to a triangle adjacent to the vertex, and a 0 everywhere else.
+
+        Warning: This is very slow on large meshes.
         """
         vertex_indices = torch.arange(self.num_vertices)[:, None, None]
         triangles = self.triangles[None, :, :]

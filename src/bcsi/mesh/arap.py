@@ -58,8 +58,7 @@ def raw(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
 def l2(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     """Calculate the L2 shape space metric regularization term."""
     plain_l2 = torch.linalg.norm(deformation_field.reshape(-1, 3), dim=-1)
-    vertex_areas = mesh.trivert_adjacency_matrix.double() @ mesh.triangle_areas
-    return torch.sum(plain_l2 * vertex_areas / 3)
+    return torch.sum(plain_l2 * mesh.vertex_areas)
 
 
 def metric(
