@@ -112,8 +112,6 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     else:
         frame_bpss = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
-    breakpoint()
-
     diff_func = _diff_functions[args.diff_metric]
     diffs = {}
     rendered_meshes = []
