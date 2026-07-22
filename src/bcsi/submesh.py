@@ -69,7 +69,7 @@ def create_submesh(parent: mesh.TriangleMesh, scale: float) -> mesh.TriangleMesh
     child_unaligned = o3d.t.geometry.TriangleMesh.from_legacy(
         parent.open3d.simplify_quadric_decimation(int(parent.num_triangles * scale))
     )
-    parent_verts = o3d.core.Tensor(parent.vertices.float().numpy())
+    parent_verts = o3d.core.Tensor(parent.vertices.numpy())
     nns = o3d.core.nns.NearestNeighborSearch(parent_verts)
     nns.knn_index()
     closest_point_ids, _ = nns.knn_search(child_unaligned.vertex.positions, 1)

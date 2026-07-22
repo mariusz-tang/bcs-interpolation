@@ -97,7 +97,7 @@ def unblended_patch_derivatives(
 
     x = r * torch.cos(theta)
     y = r * torch.sin(theta)
-    basis = polynomial.basis(x, y, frame.degree).float()
+    basis = polynomial.basis(x, y, frame.degree)
 
     origin_vertex_ids = frame.proxy.triangles
 
@@ -151,7 +151,7 @@ def patch_derivatives_function(
 
     x = r * torch.cos(theta)
     y = r * torch.sin(theta)
-    basis = polynomial.basis(x, y, frame.degree).float()
+    basis = polynomial.basis(x, y, frame.degree)
 
     # The einsum indices represent:
     # t: triangle
@@ -174,8 +174,8 @@ def vertex_scales_derivative(
     :param frame: BPS at time t.
     """
     # Accumulate edge lengths and counts.
-    edge_length_derivatives = torch.zeros(frame.proxy.num_vertices)
-    edge_counts = torch.zeros(frame.proxy.num_vertices)
+    edge_length_derivatives = torch.zeros(frame.proxy.num_vertices).double()
+    edge_counts = torch.zeros_like(edge_length_derivatives)
 
     # For each vertex of a face.
     for i in range(3):
@@ -192,7 +192,7 @@ def vertex_scales_derivative(
         dmag_u_dt = _derivative_of_norm(u, du_dt).flatten()
 
         # Repeat the tensor to match the full list of indexes `ids`.
-        dmag_u_dt = dmag_u_dt.float().repeat(2)
+        dmag_u_dt = dmag_u_dt.repeat(2)
 
         # Update the accumulators.
         edge_length_derivatives.index_add_(0, ids, dmag_u_dt)
@@ -219,7 +219,7 @@ def vertex_rotations_derivative(
         dv_dt, dnormals_dt, proxy
     )
 
-    drotations_dt = torch.zeros(proxy.num_vertices, 3, 3)
+    drotations_dt = torch.zeros(proxy.num_vertices, 3, 3).double()
 
     drotations_dt[..., 0] = dneighbours_dt
     drotations_dt[..., 1] = torch.linalg.cross(

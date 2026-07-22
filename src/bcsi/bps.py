@@ -48,7 +48,7 @@ class BlendedPolynomialSurface:
             # If no coefficients are given, initialize to zeros for degree 0...
             self.coefficients = torch.zeros(
                 (self.proxy.num_vertices, 3, num_coeffs)
-            ).float()
+            ).double()
             if self.degree >= 1:
                 # ...or xy planes for degree at least 1.
                 self.coefficients[:, 0, 1] = 1
@@ -57,10 +57,10 @@ class BlendedPolynomialSurface:
             # If coefficients are given for a single vertex, use them for all vertices.
             self.coefficients = torch.stack(
                 [coefficients] * self.proxy.num_vertices
-            ).float()
+            ).double()
         elif coefficients.shape == (self.proxy.num_vertices, 3, num_coeffs):
             # If coefficients are given for all vertices, use them all.
-            self.coefficients = coefficients.float()
+            self.coefficients = coefficients.double()
         else:
             raise ValueError(
                 f"invalid shape for coefficients {coefficients.shape} for "
@@ -90,8 +90,8 @@ class BlendedPolynomialSurface:
         """
         logger.info("vertex_scales begin")
         # Accumulate edge lengths and counts.
-        edge_lengths = torch.zeros(self.proxy.num_vertices)
-        edge_counts = torch.zeros(self.proxy.num_vertices)
+        edge_lengths = torch.zeros(self.proxy.num_vertices).double()
+        edge_counts = torch.zeros(self.proxy.num_vertices).double()
         min_edge_lengths = torch.ones_like(edge_lengths) * torch.inf
 
         # For each vertex of a face.
@@ -105,13 +105,9 @@ class BlendedPolynomialSurface:
 
             # Calculate the edge length. We repeat the tensor to match the
             # full list of indexes `ids`.
-            length = (
-                torch.linalg.norm(
-                    self.proxy.vertices[vi] - self.proxy.vertices[vj], dim=1
-                )
-                .float()
-                .repeat(2)
-            )
+            length = torch.linalg.norm(
+                self.proxy.vertices[vi] - self.proxy.vertices[vj], dim=1
+            ).repeat(2)
 
             # Update the accumulators.
             edge_lengths.index_add_(0, ids, length)
@@ -145,7 +141,7 @@ class BlendedPolynomialSurface:
         Shape: (num_vertices, 3, 3)
         """
         logger.info("vertex_rotations begin")
-        rotations = torch.zeros((self.proxy.num_vertices, 3, 3))
+        rotations = torch.zeros((self.proxy.num_vertices, 3, 3)).double()
 
         for vertex_id in range(self.proxy.num_vertices):
             vertex = self.proxy.vertices[vertex_id]
@@ -191,7 +187,7 @@ class BlendedPolynomialSurface:
 
         x = coordinates[:, 0]
         y = coordinates[:, 1]
-        basis = polynomial.basis(x, y, self.degree).float()
+        basis = polynomial.basis(x, y, self.degree).double()
 
         result_local = torch.einsum("dc,pc->pd", coefficients, basis)
         rotation_matrix = self.vertex_rotations[vertex_id]
@@ -200,7 +196,7 @@ class BlendedPolynomialSurface:
         vertex = self.proxy.vertices[vertex_id]
         scale = self.vertex_scales[vertex_id]
 
-        return (scale * result_rotated + vertex).float()
+        return scale * result_rotated + vertex
 
     @cached_property
     def triangle_onering_indices(self) -> torch.Tensor:
@@ -365,7 +361,7 @@ class BlendedPolynomialSurface:
 
         x = r * torch.cos(theta)
         y = r * torch.sin(theta)
-        basis = polynomial.basis(x, y, self.degree).float()
+        basis = polynomial.basis(x, y, self.degree)
 
         origin_vertex_ids = self.proxy.triangles
 
@@ -388,7 +384,7 @@ class BlendedPolynomialSurface:
         return (
             scale[:, :, torch.newaxis, torch.newaxis] * result_rotated
             + origin_vertices[:, :, torch.newaxis, :]
-        ).float()
+        )
 
     def get_blended_patch_vertices(self, vertices: torch.Tensor) -> torch.Tensor:
         """Convert from cartesian coordinates to blended patches.
@@ -407,5 +403,5 @@ class BlendedPolynomialSurface:
         """
         logger.info("blended patch vertices")
         unblended_coords = self.get_unblended_patch_vertices(vertices)
-        blend_coefficients = triangle.blend_coefficients(vertices, self.beta).float()
+        blend_coefficients = triangle.blend_coefficients(vertices, self.beta)
         return torch.einsum("tpvd,vp->tvd", unblended_coords, blend_coefficients)

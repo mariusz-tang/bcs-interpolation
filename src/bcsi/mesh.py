@@ -28,7 +28,7 @@ class TriangleMesh:
 
         Shape: (num_vertices, 3)
         """
-        return _tensor(self._mesh.vertices)
+        return _tensor(self._mesh.vertices).double()
 
     @property
     def num_vertices(self) -> int:
@@ -41,7 +41,7 @@ class TriangleMesh:
 
         Shape: (num_triangles, 3)
         """
-        return _tensor(self._mesh.triangles)
+        return _tensor(self._mesh.triangles).long()
 
     @property
     def num_triangles(self) -> int:
@@ -59,7 +59,7 @@ class TriangleMesh:
         """
         if not self._mesh.has_vertex_normals():
             self._mesh.compute_vertex_normals()
-        return _tensor(self._mesh.vertex_normals)
+        return _tensor(self._mesh.vertex_normals).double()
 
     @cached_property
     def triangle_normals(self) -> torch.Tensor:
@@ -69,7 +69,7 @@ class TriangleMesh:
         """
         if not self._mesh.has_triangle_normals():
             self._mesh.compute_triangle_normals()
-        return _tensor(self._mesh.triangle_normals)
+        return _tensor(self._mesh.triangle_normals).double()
 
     @cached_property
     def adjacency_list(self) -> list[set[int]]:
@@ -115,8 +115,8 @@ class TriangleMesh:
     def vertex_colors(self) -> torch.Tensor:
         """Vertex colors."""
         if self._mesh.has_vertex_colors():
-            return _tensor(self._mesh.vertex_colors)
-        return torch.zeros_like(self.vertices)
+            return _tensor(self._mesh.vertex_colors).double()
+        return torch.zeros_like(self.vertices).double()
 
     @vertex_colors.setter
     def vertex_colors(self, colors: torch.Tensor) -> None:
@@ -128,7 +128,7 @@ class TriangleMesh:
         """Tensor storing the area of each triangle."""
         mesh_modern = o3d.t.geometry.TriangleMesh.from_legacy(self._mesh)
         mesh_modern.compute_triangle_areas()
-        return torch.tensor(mesh_modern.triangle.areas.numpy())
+        return torch.tensor(mesh_modern.triangle.areas.numpy()).double()
 
     @cached_property
     def trivert_adjacency_matrix(self) -> torch.Tensor:

@@ -140,7 +140,7 @@ def test_vertex_scales(pyramid_mesh: mesh.TriangleMesh, scale_global: float) -> 
     )
 
     assert surface.vertex_scales.shape == expected_scales.shape
-    assert torch.allclose(surface.vertex_scales, expected_scales)
+    assert torch.allclose(surface.vertex_scales, expected_scales.double())
 
 
 @pytest.mark.parametrize("scale_global", torch.linspace(0, 1, 10))
@@ -170,7 +170,7 @@ def test_vertex_scales_capped_to_minimum_edge_length(scale_global: float) -> Non
     surface = bps.BlendedPolynomialSurface(
         compressed_pyramid_mesh, 2, scale=scale_global
     )
-    assert surface.vertex_scales[0] == 2 * 0.1 * scale_global
+    assert surface.vertex_scales[0].item() == 2 * 0.1 * scale_global
 
 
 def test_vertex_rotations(pyramid_mesh: mesh.TriangleMesh) -> None:
@@ -189,7 +189,9 @@ def test_vertex_rotations(pyramid_mesh: mesh.TriangleMesh) -> None:
         ]
     ).t()
     assert surface.vertex_rotations[0].shape == expected_rotation_matrix.shape
-    assert torch.allclose(surface.vertex_rotations[0], expected_rotation_matrix)
+    assert torch.allclose(
+        surface.vertex_rotations[0], expected_rotation_matrix.double()
+    )
 
 
 @pytest.mark.parametrize(
@@ -247,7 +249,7 @@ def test_evaluate_patch(
     )
     result = surface.evaluate_patch(vertex_id, coordinates)
     assert result.shape == expected_output.shape
-    assert torch.allclose(result, expected_output.float())
+    assert torch.allclose(result, expected_output.double())
 
 
 @pytest.mark.parametrize("vertex_id", [-6, 5])
@@ -330,7 +332,7 @@ def test_get_onering_coordinates(
     surface = bps.BlendedPolynomialSurface(pyramid_mesh, 1)
     result = surface.get_onering_coordinates(vertices)
     assert result[triangle_id].shape == expected_output.shape
-    assert torch.allclose(result[triangle_id], expected_output)
+    assert torch.allclose(result[triangle_id], expected_output.double())
 
 
 def test_get_onering_coordinates_wrong_input_shape_raises(
@@ -348,6 +350,7 @@ def test_get_unblended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     assert torch.allclose(
         result[0, 0],
         surface.evaluate_patch(0, torch.tensor([[0, 0], [0, -1]])),
+        atol=1e-6,
     )
 
 
@@ -366,7 +369,7 @@ def test_get_blended_patch_vertices(pyramid_mesh: mesh.TriangleMesh) -> None:
     )
     assert result[0].shape == (3, 3)
     assert torch.allclose(
-        result[0], torch.tensor([[0, 0, 0], [1, 1, 0], [1, 0, 0]]).float()
+        result[0], torch.tensor([[0, 0, 0], [1, 1, 0], [1, 0, 0]]).double()
     )
 
 

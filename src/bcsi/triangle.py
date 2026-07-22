@@ -35,7 +35,7 @@ def angles(vertices: torch.Tensor) -> torch.Tensor:
         dim=-1,
     )
     # We can get nan if an input vertex is exactly on a triangle vertex.
-    return torch.where(torch.isnan(angles_raw), 0, angles_raw)
+    return torch.where(torch.isnan(angles_raw), 0, angles_raw).double()
 
 
 def distances(vertices: torch.Tensor) -> torch.Tensor:
@@ -43,7 +43,7 @@ def distances(vertices: torch.Tensor) -> torch.Tensor:
     _raise_if_bad_vertices_shape(vertices)
     triangle_vertices = torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]])
     offsets = triangle_vertices - vertices[..., torch.newaxis, :]
-    return torch.norm(offsets, dim=-1)
+    return torch.norm(offsets, dim=-1).double()
 
 
 def blend_coefficients(vertices: torch.Tensor, beta: float) -> torch.Tensor:
@@ -56,7 +56,9 @@ def blend_coefficients(vertices: torch.Tensor, beta: float) -> torch.Tensor:
     _raise_if_bad_vertices_shape(vertices)
     dist = distances(vertices)
     coefficients_nominal = _blend_1d(dist, beta)
-    return coefficients_nominal / coefficients_nominal.sum(dim=-1, keepdim=True)
+    return (
+        coefficients_nominal / coefficients_nominal.sum(dim=-1, keepdim=True).double()
+    )
 
 
 def _blend_1d(x: torch.Tensor, beta: float) -> torch.Tensor:

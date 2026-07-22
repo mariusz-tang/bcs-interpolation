@@ -25,7 +25,7 @@ def test_vertex_scales_derivative() -> None:
                 (2 * math.sqrt(2) + 1) / 3,
                 (2 * math.sqrt(2) + 1) / 3,
             ]
-        )
+        ).double()
         * start.global_scale,
     )
 
@@ -47,7 +47,7 @@ def test_patch_derivatives_function() -> None:
 
     assert torch.allclose(
         result[0, :, 0],
-        torch.tensor([[0, 0, 0], [1, 0, 0], [-0.5, math.sqrt(3) / 2, 0]]).float(),
+        torch.tensor([[0, 0, 0], [1, 0, 0], [-0.5, math.sqrt(3) / 2, 0]]).double(),
     )
 
 

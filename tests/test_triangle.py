@@ -15,22 +15,22 @@ from bcsi import triangle
         ),
         (
             torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]]),
-            torch.tensor([[0, 1, 1], [1, 0, 1], [1, 1, 0]]).float(),
+            torch.tensor([[0, 1, 1], [1, 0, 1], [1, 1, 0]]),
         ),
         (
             torch.tensor([[0.5, 0]]),
-            torch.tensor([[0.5, 0.5, math.sqrt(3) / 2]]).float(),
+            torch.tensor([[0.5, 0.5, math.sqrt(3) / 2]]),
         ),
         (
             torch.tensor([[[0, 0], [0, 0]], [[0, 0], [0, 0]]]),
-            torch.tensor([[[0, 1, 1], [0, 1, 1]], [[0, 1, 1], [0, 1, 1]]]).float(),
+            torch.tensor([[[0, 1, 1], [0, 1, 1]], [[0, 1, 1], [0, 1, 1]]]),
         ),
     ],
 )
 def test_distances(vertices: torch.Tensor, expected_result: torch.Tensor) -> None:
     result = triangle.distances(vertices)
     assert result.shape == expected_result.shape
-    assert torch.allclose(result, expected_result)
+    assert torch.allclose(result, expected_result.double())
 
 
 def test_distances_wrong_input_shape_raises() -> None:
@@ -49,19 +49,19 @@ def test_distances_wrong_input_shape_raises() -> None:
         (
             torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]]),
             0.73,
-            torch.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]).float(),
+            torch.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
         ),
         (
             torch.tensor([[0.5, 0]]),
             0.5,
-            torch.tensor([[0.5, 0.5, 0]]).float(),
+            torch.tensor([[0.5, 0.5, 0]]),
         ),
         (
             torch.tensor([[[0.5, 0], [0.5, 0]], [[0.5, 0], [0.5, 0]]]),
             0.5,
             torch.tensor(
                 [[[0.5, 0.5, 0], [0.5, 0.5, 0]], [[0.5, 0.5, 0], [0.5, 0.5, 0]]]
-            ).float(),
+            ),
         ),
     ],
 )
@@ -70,7 +70,7 @@ def test_blend_coefficients(
 ) -> None:
     result = triangle.blend_coefficients(vertices, beta)
     assert result.shape == expected_result.shape
-    assert torch.allclose(result, expected_result)
+    assert torch.allclose(result, expected_result.double())
 
 
 def test_blend_coefficients_wrong_input_shape_raises() -> None:
@@ -89,11 +89,11 @@ def test_blend_coefficients_wrong_input_shape_raises() -> None:
             torch.tensor([[0, 0], [1, 0], [0.5, math.sqrt(3) / 2]]),
             torch.tensor(
                 [[0, torch.pi / 3, 0], [0, 0, torch.pi / 3], [torch.pi / 3, 0, 0]]
-            ).float(),
+            ),
         ),
         (
             torch.tensor([[0.75, math.sqrt(3) / 4]]),
-            torch.tensor([[torch.pi / 6, 0, torch.pi / 3]]).float(),
+            torch.tensor([[torch.pi / 6, 0, torch.pi / 3]]),
         ),
         (
             torch.tensor([[[0, 0], [0, 0]], [[0, 0], [0, 0]]]),
@@ -102,14 +102,14 @@ def test_blend_coefficients_wrong_input_shape_raises() -> None:
                     [[0, torch.pi / 3, 0], [0, torch.pi / 3, 0]],
                     [[0, torch.pi / 3, 0], [0, torch.pi / 3, 0]],
                 ]
-            ).float(),
+            ),
         ),
     ],
 )
 def test_angles(vertices: torch.Tensor, expected_result: torch.Tensor) -> None:
     result = triangle.angles(vertices)
     assert result.shape == expected_result.shape
-    assert torch.allclose(result, expected_result)
+    assert torch.allclose(result, expected_result.double())
 
 
 def test_angles_wrong_input_shape_raises() -> None:

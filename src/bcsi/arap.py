@@ -30,7 +30,7 @@ def residue(
     The first three components represent the constant term and the last three the
     cross product term.
     """
-    p = mesh.vertices.float()
+    p = mesh.vertices
     k = rigid_component[:3]
     c = rigid_component[None, 3:]
     rigid_deformation_field = k + torch.linalg.cross(c, p)
@@ -49,7 +49,7 @@ def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tenso
     avg = deformation_field.mean()
     result = torchmin.minimize(
         partial(residue, mesh=mesh, deformation_field=deformation_field),
-        torch.tensor([avg, 0]).float().repeat_interleave(3),
+        torch.tensor([avg, 0]).double().repeat_interleave(3),
         "newton-cg",
     )
     return result.fun
@@ -58,7 +58,7 @@ def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tenso
 def l2(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     """Calculate the L2 shape space metric regularization term."""
     plain_l2 = torch.linalg.norm(deformation_field.reshape(-1, 3), dim=-1)
-    vertex_areas = mesh.trivert_adjacency_matrix.float() @ mesh.triangle_areas
+    vertex_areas = mesh.trivert_adjacency_matrix.double() @ mesh.triangle_areas
     return torch.sum(plain_l2 * vertex_areas / 3)
 
 
