@@ -32,8 +32,8 @@ def energy(
 
     current = mesh.arap.metric(*bps_to_shape_space(start, finish, 0, resolution))
 
-    for i in range(num_frames):
-        t = (1 + i) / num_frames
+    for i in range(num_frames - 1):
+        t = (1 + i) / (num_frames - 1)
         total += current
         current = mesh.arap.metric(*bps_to_shape_space(start, finish, t, resolution))
         total += current
