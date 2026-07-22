@@ -92,7 +92,6 @@ class BlendedPolynomialSurface:
         # Accumulate edge lengths and counts.
         edge_lengths = torch.zeros(self.proxy.num_vertices).double()
         edge_counts = torch.zeros(self.proxy.num_vertices).double()
-        min_edge_lengths = torch.ones_like(edge_lengths) * torch.inf
 
         # For each vertex of a face.
         for i in range(3):
@@ -113,19 +112,7 @@ class BlendedPolynomialSurface:
             edge_lengths.index_add_(0, ids, length)
             edge_counts.index_add_(0, ids, torch.ones_like(length))
 
-            # For minima there is no easy method like `index_add_` so we
-            # construct a 'sieve', replacing irrelevant values with infinity,
-            # where we can then take the mininum as usual.
-            uids = ids.unique()
-            sieve = uids[:, None] == ids[None, :]
-            min_lengths = torch.where(sieve, length, torch.inf).min(dim=1).values
-            min_edge_lengths[uids] = min_edge_lengths[uids].where(
-                min_edge_lengths[uids] < min_lengths, min_lengths
-            )
-
-        mean_edge_length = edge_lengths / edge_counts
-
-        local_scales = torch.minimum(mean_edge_length, 2 * min_edge_lengths)
+        local_scales = edge_lengths / edge_counts
 
         logger.info("vertex_scales end")
         return local_scales * self.global_scale
