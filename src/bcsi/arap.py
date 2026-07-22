@@ -63,7 +63,7 @@ def l2(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor
 
 
 def metric(
-    mesh: mesh.TriangleMesh, deformation_field: torch.Tensor, lamda: float
+    mesh: mesh.TriangleMesh, deformation_field: torch.Tensor, lamda: float = 0.001
 ) -> torch.Tensor:
     """Calculate the full, regularized ARAP metric."""
     return raw(mesh, deformation_field) + lamda * l2(mesh, deformation_field)

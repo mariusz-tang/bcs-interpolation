@@ -5,7 +5,38 @@ Deformations are assumed to be linear between frames.
 
 import torch
 
-from bcsi import bps, mesh, polynomial, render, triangle
+from bcsi import arap, bps, mesh, polynomial, render, triangle
+
+
+def energy(
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
+    resolution: int,
+    num_frames: int = 2,
+) -> torch.Tensor:
+    """Calculate BPS deformation energy.
+
+    :param start: BPS at the start of the deformation.
+    :param finish: BPS at the end of the deformation.
+    :param resolution: resolution at which to render the BPS when calculating
+    shape-space metrics.
+    :param num_frames: the total number of frames at which to take the metric,
+    including `start` and `finish`. Must be at least 2.
+    """
+    if num_frames < 2:
+        raise ValueError(f"num_frames must be at least 2 but was {num_frames}")
+
+    total = torch.tensor(0).double()
+
+    current = arap.metric(*from_bps(start, finish, 0, resolution))
+
+    for i in range(num_frames):
+        t = (1 + i) / num_frames
+        total += current
+        current = arap.metric(*from_bps(start, finish, t, resolution))
+        total += current
+
+    return total
 
 
 def from_bps(
