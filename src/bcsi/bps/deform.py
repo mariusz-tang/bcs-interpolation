@@ -3,6 +3,8 @@
 Deformations are assumed to be linear between frames.
 """
 
+import math
+
 import torch
 
 from bcsi import mesh
@@ -380,3 +382,30 @@ def _derivative_of_norm(v: torch.Tensor, v_prime: torch.Tensor) -> torch.Tensor:
     """Calculate the derivative of |v|."""
     norm_v = torch.linalg.norm(v, dim=-1, keepdim=True)
     return torch.linalg.vecdot(v, v_prime)[..., None] / norm_v
+
+
+class Polyline:
+    """A piece-wise linear deformation between keyframes."""
+
+    def __init__(self, *frames: BlendedPolynomialSurface) -> None:
+        """Initialize a polyline deformation from a set of keyframes."""
+        self.frames = frames
+        self.num_segments = len(frames) - 1
+
+    def get_frame(self, t: float) -> BlendedPolynomialSurface:
+        """Get the frame at time t.
+
+        t is clamped to [0, 1].
+        """
+        if t >= 1:
+            return self.frames[-1]
+
+        # Clamp t from below and scale to the number of segments.
+        t = max(0, t) * self.num_segments
+
+        # Find the relevant linear segment.
+        segment_start = math.floor(t)
+        segment_progress = t % 1
+        return make_frame(
+            self.frames[segment_start], self.frames[segment_start + 1], segment_progress
+        )

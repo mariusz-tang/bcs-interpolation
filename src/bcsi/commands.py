@@ -298,13 +298,13 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     )
     bps.cache.onerings(args.submesh_path.name, finish_bps)
 
-    frames = []
-
     if args.method == "linear":
-        for i in range(args.num_frames):
-            frames.append(
-                bps.deform.make_frame(start_bps, finish_bps, i / (args.num_frames - 1))
-            )
+        keyframes = [start_bps, finish_bps]
+
+    polyline = bps.deform.Polyline(*keyframes)
+    frames = []
+    for i in range(args.num_frames):
+        frames.append(polyline.get_frame(i / (args.num_frames - 1)))
 
     output_dir = io.output_dir("screenshots")
 
