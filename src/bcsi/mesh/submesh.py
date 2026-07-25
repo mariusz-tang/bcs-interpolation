@@ -125,20 +125,23 @@ def create_bps_degree_one(
         pair.parent.vertex_normals[pair.vertex_correspondences],
     )
 
-    # Project x-direction onto normal plane.
-    e_1 = torch.tensor([1, 0, 0])
-    e_1_projected = e_1 - normals[:, 0:1] * normals
-    e_1_normalized = e_1_projected / torch.linalg.vector_norm(
-        e_1_projected, dim=1, keepdim=True
-    )
-
-    # Calculate y-direction by cross product.
-    e_2 = torch.linalg.cross(normals, e_1_normalized)
-
     # Create coefficients matrix.
     coefficients = torch.zeros_like(base_surface.coefficients)
-    coefficients[..., 1] = e_1_normalized
-    coefficients[..., 2] = e_2
+
+    if degree >= 1:
+        # Project x-direction onto normal plane.
+        e_1 = torch.tensor([1, 0, 0])
+        e_1_projected = e_1 - normals[:, 0:1] * normals
+        e_1_normalized = e_1_projected / torch.linalg.vector_norm(
+            e_1_projected, dim=1, keepdim=True
+        )
+
+        # Calculate y-direction by cross product.
+        e_2 = torch.linalg.cross(normals, e_1_normalized)
+
+        # Add normal-aligned coefficients.
+        coefficients[..., 1] = e_1_normalized
+        coefficients[..., 2] = e_2
 
     # Create BPS with the new coefficients.
-    return bps.BlendedPolynomialSurface(pair.child, degree=1, coefficients=coefficients)
+    return bps.BlendedPolynomialSurface(pair.child, degree, coefficients=coefficients)
