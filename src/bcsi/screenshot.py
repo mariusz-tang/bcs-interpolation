@@ -18,7 +18,7 @@ def bps(
 ) -> None:
     """Save a linear deformation in BPS space as a series of screenshots."""
     mesh_ = bcsi.bps.render.surface(bps, resolution)
-    mesh(mesh_, save_dir, f"{filename}.png")
+    mesh(mesh_, save_dir, f"{filename}")
 
 
 def mesh(mesh: bcsi.mesh.TriangleMesh, save_dir: pathlib.Path, filename: str) -> None:
