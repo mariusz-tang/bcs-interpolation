@@ -22,22 +22,26 @@ def get_parser() -> argparse.ArgumentParser:
     bps_parser.add_argument(
         "--degree",
         default=1,
+        type=int,
         help="degree of polynomials to use to represent the surface",
     )
     bps_parser.add_argument(
         "--scale",
         default=0.5,
+        type=float,
         help="global scale to use for blended chart surfaces (default: 0.5)",
     )
     bps_parser.add_argument(
         "--beta",
         default=0.73,
+        type=float,
         help="beta ('blending overlap') to use for blended chart surfaces "
         "(default: 0.73)",
     )
     bps_parser.add_argument(
         "--resolution",
         default=3,
+        type=int,
         help="resolution with which to render blended chart surfaces (default: 3)",
     )
     bps_parser.add_argument(
