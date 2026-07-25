@@ -179,6 +179,40 @@ def get_parser() -> argparse.ArgumentParser:
     )
     screenshot_mesh.set_defaults(outfile=True, func_name="screenshot_mesh")
 
+    deform_bps = subparsers.add_parser(
+        "deform-bps",
+        parents=[base_parser, bps_parser],
+    )
+    deform_bps.add_argument(
+        "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
+    )
+    deform_bps.add_argument(
+        "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
+    )
+    deform_bps.add_argument(
+        "start_mesh_path",
+        help="path to parent mesh file at the start of the deformation",
+        type=pathlib.Path,
+    )
+    deform_bps.add_argument(
+        "finish_mesh_path",
+        help="path to parent mesh file at the end of the deformation",
+        type=pathlib.Path,
+    )
+    deform_bps.add_argument(
+        "--num-frames",
+        default=10,
+        type=int,
+        help="number of frames to generate (default: 10)",
+    )
+    deform_bps.add_argument(
+        "--method",
+        choices=["linear"],
+        default="linear",
+        help="interpolation method (default: linear)",
+    )
+    deform_bps.set_defaults(outfile=True, func_name="deform_bps")
+
     return parser
 
 

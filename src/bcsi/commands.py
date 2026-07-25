@@ -276,3 +276,42 @@ def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
     mesh_ = io.read_mesh(args.mesh_path)
     output_dir = io.output_dir("screenshots")
     screenshot.mesh(mesh_, output_dir, output_name)
+
+
+def deform_bps(args: argparse.Namespace, output_name: str) -> None:
+    """Construct a BPS deformation and save screenshots."""
+    child = io.read_mesh(args.submesh_path)
+    parent = io.read_mesh(args.parent_mesh_path)
+    reference_pair = mesh.submesh.Pair(child, parent)
+
+    start_parent = io.read_mesh(args.start_mesh_path)
+    start_pair = mesh.submesh.new_frame(reference_pair, start_parent)
+    start_bps = mesh.submesh.create_bps_degree_one(
+        start_pair, args.degree, args.scale, args.beta
+    )
+    bps.cache.onerings(args.submesh_path.name, start_bps)
+
+    finish_parent = io.read_mesh(args.finish_mesh_path)
+    finish_pair = mesh.submesh.new_frame(reference_pair, finish_parent)
+    finish_bps = mesh.submesh.create_bps_degree_one(
+        finish_pair, args.degree, args.scale, args.beta
+    )
+    bps.cache.onerings(args.submesh_path.name, finish_bps)
+
+    frames = []
+
+    if args.method == "linear":
+        for i in range(args.num_frames):
+            frames.append(
+                bps.deform.make_frame(start_bps, finish_bps, i / (args.num_frames - 1))
+            )
+
+    output_dir = io.output_dir("screenshots")
+
+    for i, frame in enumerate(frames):
+        if args.visualize:
+            render = bps.render.surface(frame, args.resolution)
+            mesh.show(render)
+            screenshot.mesh(render, output_dir, f"{output_name}-{i}")
+        else:
+            screenshot.bps(frame, output_dir, f"{output_name}-{i}", args.resolution)

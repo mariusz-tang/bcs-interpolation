@@ -41,6 +41,30 @@ def energy(
     return total
 
 
+def make_frame(
+    start: BlendedPolynomialSurface, finish: BlendedPolynomialSurface, t: float
+) -> BlendedPolynomialSurface:
+    """Construct an intermediate BPS by linear interpolation."""
+    dv_dt = finish.proxy.vertices - start.proxy.vertices
+    dcoeffs_dt = finish.coefficients - start.coefficients
+
+    # Construct frame BPS.
+    proxy = mesh.from_tensors(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
+    frame = BlendedPolynomialSurface(
+        proxy,
+        start.degree,
+        start.global_scale,
+        start.coefficients + t * dcoeffs_dt,
+        start.beta,
+    )
+
+    # Transfer computationally-expensive data which is needed for rendering step.
+    frame.triangle_onering_flips = start.triangle_onering_flips
+    frame.triangle_onering_indices = start.triangle_onering_indices
+
+    return frame
+
+
 def bps_to_shape_space(
     start: BlendedPolynomialSurface,
     finish: BlendedPolynomialSurface,
@@ -58,21 +82,7 @@ def bps_to_shape_space(
     :returns: The frame BPS, rendered at `resolution`, with the corresponding
     deformation field tensor.
     """
-    dv_dt = finish.proxy.vertices - start.proxy.vertices
-    dcoeffs_dt = finish.coefficients - start.coefficients
-
-    # Construct frame BPS.
-    proxy = mesh.from_tensors(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
-    frame = BlendedPolynomialSurface(
-        proxy,
-        start.degree,
-        start.global_scale,
-        start.coefficients + t * dcoeffs_dt,
-        start.beta,
-    )
-    # Transfer computationally-expensive data which is needed for rendering step.
-    frame.triangle_onering_flips = start.triangle_onering_flips
-    frame.triangle_onering_indices = start.triangle_onering_indices
+    frame = make_frame(start, finish, t)
 
     patch = render.triangle_patch(resolution)
     # Ignore the z coordinate, which is zero everywhere.
@@ -93,6 +103,8 @@ def bps_to_shape_space(
     rendered_mesh = mesh.from_tensors(vertices, triangles)
 
     # Calculate deformation field and flatten the result.
+    dv_dt = finish.proxy.vertices - start.proxy.vertices
+    dcoeffs_dt = finish.coefficients - start.coefficients
     dp_dt = blended_patch_derivatives(
         dv_dt, dcoeffs_dt, frame, patch_coordinates
     ).reshape(-1, 3)
