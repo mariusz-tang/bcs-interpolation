@@ -9,7 +9,7 @@ import pathlib
 
 import torch
 
-from bcsi import bps, io, mesh, plot
+from bcsi import bps, io, mesh, plot, screenshot
 
 
 def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
@@ -269,3 +269,10 @@ def plot_diffs(args: argparse.Namespace, output_name: str) -> None:
     ]
     fig = plot.diff_comparison(data, args.dataset_names or range(len(data)))
     io.write_figure(fig, io.output_dir() / f"diff-{output_name}.svg")
+
+
+def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
+    """Take screenshots of a mesh."""
+    mesh_ = io.read_mesh(args.mesh_path)
+    output_dir = io.output_dir("screenshots")
+    screenshot.mesh(mesh_, output_dir, output_name)

@@ -168,6 +168,17 @@ def get_parser() -> argparse.ArgumentParser:
     )
     plot_diff_parser.set_defaults(outfile=True, func_name="plot_diffs")
 
+    screenshot_mesh = subparsers.add_parser(
+        "screenshot-mesh",
+        parents=[base_parser],
+        help="save screenshots of a mesh",
+        description="Save screenshots of a mesh from various angles.",
+    )
+    screenshot_mesh.add_argument(
+        "mesh_path", help="path to mesh file", type=pathlib.Path
+    )
+    screenshot_mesh.set_defaults(outfile=True, func_name="screenshot_mesh")
+
     return parser
 
 

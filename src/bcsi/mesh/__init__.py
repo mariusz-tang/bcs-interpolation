@@ -10,5 +10,6 @@ __all__ = [
     "show",
     "arap",
     "diff",
+    "screenshot",
     "submesh",
 ]
