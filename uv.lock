@@ -47,6 +47,7 @@ dependencies = [
     { name = "numpy" },
     { name = "open3d" },
     { name = "pytorch-minimize" },
+    { name = "scipy" },
     { name = "torch" },
 ]
 
@@ -65,6 +66,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "open3d", specifier = ">=0.19.0" },
     { name = "pytorch-minimize", specifier = ">=0.1.0" },
+    { name = "scipy", specifier = ">=1.17.1" },
     { name = "torch", specifier = ">=2.12.0" },
 ]
 
