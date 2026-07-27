@@ -35,7 +35,7 @@ def write_json(data: dict, path: pathlib.Path) -> None:
 def read_mesh(path: pathlib.Path) -> mesh.TriangleMesh:
     """Load a mesh from a file."""
     o3d_mesh = o3d.io.read_triangle_mesh(path)
-    return mesh.TriangleMesh(o3d_mesh)
+    return mesh.TriangleMesh.from_open3d_legacy(o3d_mesh)
 
 
 def write_mesh(
@@ -45,7 +45,7 @@ def write_mesh(
     print(f"Writing mesh to {path}")
     o3d.io.write_triangle_mesh(
         path,
-        mesh.open3d,
+        mesh.open3d_legacy(),
         write_vertex_normals=False,
         write_vertex_colors=write_vertex_colors,
         write_triangle_uvs=False,

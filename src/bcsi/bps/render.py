@@ -24,7 +24,7 @@ def onering_patch(valence: int, resolution: int) -> mesh.TriangleMesh:
         )
         triangles.append([0, i + 1, (i + 1) % valence + 1])
 
-    plane = mesh.from_tensors(torch.tensor(verts), torch.tensor(triangles))
+    plane = mesh.TriangleMesh(torch.tensor(verts), torch.tensor(triangles))
     return plane.subdivide_midpoint(resolution)
 
 
@@ -36,7 +36,7 @@ def triangle_patch(resolution: int) -> mesh.TriangleMesh:
     patch_verts = torch.tensor([[0, 0, 0], [1, 0, 0], [0.5, math.sqrt(3) / 2, 0]])
     patch_tris = torch.tensor([[0, 1, 2]])
 
-    plane = mesh.from_tensors(patch_verts, patch_tris)
+    plane = mesh.TriangleMesh(patch_verts, patch_tris)
     return plane.subdivide_midpoint(resolution)
 
 
@@ -62,7 +62,7 @@ def surface(
         * torch.arange(surface.proxy.num_triangles)[:, None, None]
         * patch.num_vertices
     ).reshape(-1, 3)
-    result = mesh.from_tensors(vertices, triangles)
+    result = mesh.TriangleMesh(vertices, triangles)
 
     # Merge the patches into one cohesive mesh.
-    return result.merge_close_vertices(eps=1e-6)
+    return result.merge_close_vertices()

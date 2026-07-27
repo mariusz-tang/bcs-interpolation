@@ -235,7 +235,7 @@ class BlendedPolynomialSurface:
         onering_indices = torch.zeros((self.proxy.num_triangles, 3))
         onering_flips = torch.zeros_like(onering_indices)
         halfedge_mesh = o3d.geometry.HalfEdgeTriangleMesh.create_from_triangle_mesh(
-            self.proxy.open3d
+            self.proxy.open3d_legacy()
         )
 
         # For each vertex...

@@ -12,8 +12,8 @@ def vertex_to_vertex(source: TriangleMesh, target: TriangleMesh) -> torch.Tensor
 
     Shape: (num_source_vertices)
     """
-    points_source = o3d.geometry.PointCloud(source.open3d.vertices)
-    points_target = o3d.geometry.PointCloud(target.open3d.vertices)
+    points_source = o3d.geometry.PointCloud(source.open3d_legacy().vertices)
+    points_target = o3d.geometry.PointCloud(target.open3d_legacy().vertices)
     distances_o3d = points_source.compute_point_cloud_distance(points_target)
     return torch.tensor(np.asarray(distances_o3d))
 
@@ -26,7 +26,7 @@ def vertex_to_mesh(source: TriangleMesh, target: TriangleMesh) -> torch.Tensor:
     Shape: (num_source_vertices)
     """
     scene = o3d.t.geometry.RaycastingScene()
-    scene.add_triangles(o3d.t.geometry.TriangleMesh.from_legacy(target.open3d))
+    scene.add_triangles(o3d.t.geometry.TriangleMesh.from_legacy(target.open3d_legacy()))
 
     query_points = o3d.core.Tensor(source.vertices.float().numpy())
     distances_o3d = scene.compute_distance(query_points)

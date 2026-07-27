@@ -18,7 +18,6 @@ def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     surface = bps.BlendedPolynomialSurface(m, args.degree, args.scale, beta=args.beta)
     bps.cache.onerings(args.mesh_path.name, surface)
     surface_rendered = bps.render.surface(surface, args.resolution)
-    surface_rendered.open3d.compute_vertex_normals()
 
     if args.visualize:
         mesh.show(surface_rendered)
@@ -28,7 +27,6 @@ def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
 def show_mesh(args: argparse.Namespace, _: pathlib.Path) -> None:
     """Open a mesh in an interactive visualizer window."""
     mesh_ = io.read_mesh(args.mesh_path)
-    mesh_.open3d.compute_vertex_normals()
     mesh.show(mesh_)
 
 
@@ -38,7 +36,6 @@ def create_submesh(args: argparse.Namespace, output_name: str) -> None:
     child = mesh.submesh.create(mesh_, args.scale)
     io.write_mesh(child, io.output_dir() / f"{output_name}-submesh.ply")
     if args.visualize:
-        mesh_.open3d.compute_vertex_normals()
         mesh.show(mesh_)
 
 
@@ -53,7 +50,6 @@ def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     )
     bps.cache.onerings(args.submesh_path.name, surface)
     surface_rendered = bps.render.surface(surface, args.resolution)
-    surface_rendered.open3d.compute_vertex_normals()
 
     diff_func = _diff_functions[args.diff_metric]
     if diff_func:
@@ -119,7 +115,6 @@ def create_submesh_frames(args: argparse.Namespace, output_dir: pathlib.Path) ->
     for i, (bps_, pair) in enumerate(zip(frame_bpss, frame_pairs, strict=True)):
         # Render the new BPS and save it.
         bps_rendered = bps.render.surface(bps_, resolution=args.resolution)
-        bps_rendered.open3d.compute_vertex_normals()
         rendered_meshes.append(bps_rendered)
 
         # Save the diff for display at the end.
@@ -258,7 +253,7 @@ _diff_functions = {
 def _add_diff_colors(mesh_: mesh.TriangleMesh, diff_: torch.Tensor) -> None:
     colors = torch.ones_like(mesh_.vertices)
     colors -= torch.tensor([[0, 1, 1]]) * diff_[:, None] / diff_.max()
-    mesh_.vertex_colors = colors
+    mesh_.update(vertex_colors=colors)
 
 
 def plot_diffs(args: argparse.Namespace, output_name: str) -> None:

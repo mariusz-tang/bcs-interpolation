@@ -30,7 +30,7 @@ def pyramid_mesh() -> mesh.TriangleMesh:
             [2, 3, 4],
         ]
     )
-    return mesh.from_tensors(vertices, triangles)
+    return mesh.TriangleMesh(vertices, triangles)
 
 
 @pytest.fixture
@@ -45,13 +45,13 @@ def subpyramid_mesh() -> mesh.TriangleMesh:
     )
     triangles = torch.tensor(
         [
-            [1, 4, 3],
-            [1, 3, 0],
-            [1, 0, 4],
-            [0, 3, 4],
+            [1, 3, 2],
+            [1, 2, 0],
+            [1, 0, 3],
+            [0, 2, 3],
         ]
     )
-    return mesh.from_tensors(vertices, triangles)
+    return mesh.TriangleMesh(vertices, triangles)
 
 
 @pytest.fixture
@@ -68,13 +68,13 @@ def dirty_subpyramid_mesh() -> mesh.TriangleMesh:
     )
     triangles = torch.tensor(
         [
-            [1, 4, 3],
-            [1, 3, 0],
-            [1, 0, 4],
-            [0, 3, 4],
+            [1, 3, 2],
+            [1, 2, 0],
+            [1, 0, 3],
+            [0, 2, 3],
         ]
     )
-    return mesh.from_tensors(vertices, triangles)
+    return mesh.TriangleMesh(vertices, triangles)
 
 
 def test_pair_vertex_correspondences(

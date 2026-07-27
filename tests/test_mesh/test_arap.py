@@ -50,7 +50,7 @@ def test_raw_zero_on_rigid_deformation(
 
 
 def test_l2() -> None:
-    mesh_ = mesh.from_tensors(
+    mesh_ = mesh.TriangleMesh(
         torch.tensor([[0, 0, 0], [0, 0, 1], [0, 1, 0]]), torch.tensor([[0, 1, 2]])
     )
     deformation_field = torch.tensor([0, 0, 1, 0, 1, 0, 1, 0, 0]).double()

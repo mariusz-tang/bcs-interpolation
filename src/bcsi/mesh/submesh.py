@@ -10,7 +10,7 @@ import torch
 
 from bcsi import bps
 
-from . import TriangleMesh, from_tensors
+from . import TriangleMesh
 
 
 class Pair:
@@ -69,7 +69,9 @@ def create(parent: TriangleMesh, scale: float) -> TriangleMesh:
         )
 
     child_unaligned = o3d.t.geometry.TriangleMesh.from_legacy(
-        parent.open3d.simplify_quadric_decimation(int(parent.num_triangles * scale))
+        parent.open3d_legacy().simplify_quadric_decimation(
+            int(parent.num_triangles * scale)
+        )
     )
     parent_verts = o3d.core.Tensor(parent.vertices.float().numpy())
     nns = o3d.core.nns.NearestNeighborSearch(parent_verts)
@@ -79,16 +81,14 @@ def create(parent: TriangleMesh, scale: float) -> TriangleMesh:
     closest_points = parent_verts[closest_point_ids[:, 0]]
     child_o3d = o3d.t.geometry.TriangleMesh(
         closest_points, child_unaligned.triangle.indices
-    )
-    child = TriangleMesh(child_o3d.to_legacy())
-    child.open3d.remove_duplicated_vertices()
-    child.open3d.remove_non_manifold_edges()
-    while non_manifold_ids := list(child.open3d.get_non_manifold_vertices()):
-        child.open3d.remove_vertices_by_index(non_manifold_ids)
-    child.open3d.remove_unreferenced_vertices()
-    child.open3d.orient_triangles()
-    child.clear_cache()
-    return child
+    ).to_legacy()
+    child_o3d.remove_duplicated_vertices()
+    child_o3d.remove_non_manifold_edges()
+    while non_manifold_ids := list(child_o3d.get_non_manifold_vertices()):
+        child_o3d.remove_vertices_by_index(non_manifold_ids)
+    child_o3d.remove_unreferenced_vertices()
+    child_o3d.orient_triangles()
+    return TriangleMesh.from_open3d_legacy(child_o3d)
 
 
 def new_frame(
@@ -97,7 +97,7 @@ def new_frame(
 ) -> Pair:
     """Return a new mesh obtained by posing a child mesh according to a new parent."""
     new_vertices = new_parent.vertices[pair.vertex_correspondences]
-    new_child = from_tensors(new_vertices, pair.child.triangles)
+    new_child = TriangleMesh(new_vertices, pair.child.triangles)
     new_pair = Pair(new_child, new_parent)
     # Transfer vertex correspondences since they will be the same.
     new_pair.vertex_correspondences = pair.vertex_correspondences

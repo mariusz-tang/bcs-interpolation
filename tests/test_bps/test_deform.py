@@ -11,8 +11,8 @@ def test_vertex_scales_derivative() -> None:
     v_finish = 2 * v_start
     tris = torch.tensor([[0, 1, 2], [0, 2, 3], [0, 3, 1], [2, 1, 3]])
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 1)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 1)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 1)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 1)
 
     dv_dt = finish.proxy.vertices - start.proxy.vertices
     result = bps.deform.vertex_scales_derivative(dv_dt, start)
@@ -36,8 +36,8 @@ def test_patch_derivatives_function() -> None:
     v_finish = 2 * v_start
     tris = torch.tensor([[0, 1, 2], [0, 2, 3], [0, 3, 1], [2, 1, 3]])
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 1)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 1)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 1)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 1)
     finish.coefficients *= 2
 
     dcoeffs_dt = finish.coefficients - start.coefficients
@@ -57,8 +57,8 @@ def test_vertex_rotations_derivative() -> None:
     v_finish = 2 * v_start
     tris = torch.tensor([[0, 1, 2], [0, 2, 3], [0, 3, 1], [2, 1, 3]])
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 1)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 1)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 1)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 1)
 
     dv_dt = finish.proxy.vertices - start.proxy.vertices
     result = bps.deform.vertex_rotations_derivative(dv_dt, start.proxy)
@@ -73,8 +73,8 @@ def test_unblended_patch_derivatives() -> None:
 
     dv_dt = (v_finish - v_start).double()
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 2)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 2)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 2)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 2)
 
     dcoeffs_dt = finish.coefficients - start.coefficients
 
@@ -92,8 +92,8 @@ def test_blended_patch_derivatives() -> None:
 
     dv_dt = (v_finish - v_start).double()
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 2)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 2)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 2)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 2)
 
     dcoeffs_dt = finish.coefficients - start.coefficients
 
@@ -113,8 +113,8 @@ def test_from_bps_translation_only(t: float) -> None:
     v_finish = v_start + 10
     tris = torch.tensor([[0, 1, 2], [0, 2, 3], [0, 3, 1], [2, 1, 3]])
 
-    start = bps.BlendedPolynomialSurface(mesh.from_tensors(v_start, tris), 2)
-    finish = bps.BlendedPolynomialSurface(mesh.from_tensors(v_finish, tris), 2)
+    start = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_start, tris), 2)
+    finish = bps.BlendedPolynomialSurface(mesh.TriangleMesh(v_finish, tris), 2)
 
     m, d = bps.deform.bps_to_shape_space(start, finish, t, 2)
     assert torch.allclose(d, torch.ones_like(m.vertices).flatten() * 10)

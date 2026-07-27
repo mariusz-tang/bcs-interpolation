@@ -53,7 +53,7 @@ def make_frame(
     dcoeffs_dt = finish.coefficients - start.coefficients
 
     # Construct frame BPS.
-    proxy = mesh.from_tensors(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
+    proxy = mesh.TriangleMesh(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
     frame = BlendedPolynomialSurface(
         proxy,
         start.degree,
@@ -104,7 +104,7 @@ def bps_to_shape_space(
     ).reshape(-1, 3)
 
     # Construct the rendered mesh
-    rendered_mesh = mesh.from_tensors(vertices, triangles)
+    rendered_mesh = mesh.TriangleMesh(vertices, triangles)
 
     # Calculate deformation field and flatten the result.
     dv_dt = finish.proxy.vertices - start.proxy.vertices
@@ -115,8 +115,8 @@ def bps_to_shape_space(
 
     # Store the deformation field in the vertex colors. This is so we can
     # associate each vertex with its deformation vector before merging vertices.
-    rendered_mesh.vertex_colors = dp_dt
-    rendered_mesh.merge_close_vertices(eps=1e-6)
+    rendered_mesh.update(vertex_colors=dp_dt)
+    rendered_mesh.merge_close_vertices()
 
     # Extract the deformation field.
     deformation_field = rendered_mesh.vertex_colors.flatten()
@@ -422,7 +422,7 @@ def split_segment_arap(
     def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
         verts = x[:num_vert_coeffs].reshape(start.proxy.vertices.shape)
         coeffs = x[num_vert_coeffs:].reshape(start.coefficients.shape)
-        proxy = mesh.from_tensors(verts, start.proxy.triangles)
+        proxy = mesh.TriangleMesh(verts, start.proxy.triangles)
         return BlendedPolynomialSurface(
             proxy, start.degree, start.global_scale, coeffs, start.beta
         )

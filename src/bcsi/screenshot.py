@@ -25,10 +25,9 @@ def mesh(mesh: bcsi.mesh.TriangleMesh, save_dir: pathlib.Path, filename: str) ->
     """Save screenshots of a mesh from various angles."""
     visualizer = o3d.visualization.Visualizer()
     visualizer.create_window()
-    visualizer.add_geometry(mesh.open3d)
 
-    mesh.open3d.compute_vertex_normals()
-    mesh.vertex_colors = torch.ones_like(mesh.vertices) * 0.8
+    mesh.update(vertex_colors=torch.ones_like(mesh.vertices) * 0.8)
+    visualizer.add_geometry(mesh.open3d_legacy())
 
     control = visualizer.get_view_control()
     control.set_zoom(0.7)

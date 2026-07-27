@@ -120,7 +120,7 @@ def pyramid_mesh() -> mesh.TriangleMesh:
             [2, 3, 4],
         ]
     )
-    return mesh.from_tensors(vertices, triangles)
+    return mesh.TriangleMesh(vertices, triangles)
 
 
 @pytest.mark.parametrize("scale_global", torch.linspace(0, 1, 10))
