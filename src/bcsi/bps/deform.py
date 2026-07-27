@@ -248,8 +248,10 @@ def vertex_scales_derivative(
         dmag_u_dt = dmag_u_dt.repeat(2)
 
         # Update the accumulators.
-        edge_length_derivatives.index_add_(0, ids, dmag_u_dt)
-        edge_counts.index_add_(0, ids, torch.ones_like(dmag_u_dt))
+        edge_length_derivatives = torch.index_add(
+            edge_length_derivatives, 0, ids, dmag_u_dt
+        )
+        edge_counts = torch.index_add(edge_counts, 0, ids, torch.ones_like(dmag_u_dt))
 
     mean_edge_length = edge_length_derivatives / edge_counts
 
@@ -318,8 +320,12 @@ def _derivative_of_vertex_normals(
         vi = proxy.triangles[:, i]
 
         # Update the accumulators.
-        vertex_normal_derivatives.index_add_(0, vi, face_normal_derivatives)
-        vertex_face_counts.index_add_(0, vi, torch.ones((proxy.num_triangles, 1)))
+        vertex_normal_derivatives = torch.index_add(
+            vertex_normal_derivatives, 0, vi, face_normal_derivatives
+        )
+        vertex_face_counts = torch.index_add(
+            vertex_face_counts, 0, vi, torch.ones((proxy.num_triangles, 1))
+        )
 
     vertex_normal_derivatives /= vertex_face_counts
     return _derivative_of_unit(proxy.vertex_normals, vertex_normal_derivatives)

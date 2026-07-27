@@ -111,8 +111,8 @@ class BlendedPolynomialSurface:
             ).repeat(2)
 
             # Update the accumulators.
-            edge_lengths.index_add_(0, ids, length)
-            edge_counts.index_add_(0, ids, torch.ones_like(length))
+            edge_lengths = torch.index_add(edge_lengths, 0, ids, length)
+            edge_counts = torch.index_add(edge_counts, 0, ids, torch.ones_like(length))
 
         local_scales = edge_lengths / edge_counts
 
@@ -142,8 +142,12 @@ class BlendedPolynomialSurface:
 
             # Project the edge onto the tangent plane and normalize to a direction.
             neighbour_direction = neighbour - vertex
-            neighbour_direction -= normal * torch.dot(normal, neighbour_direction)
-            neighbour_direction /= torch.linalg.norm(neighbour_direction)
+            neighbour_direction = neighbour_direction - normal * torch.dot(
+                normal, neighbour_direction
+            )
+            neighbour_direction = neighbour_direction / torch.linalg.norm(
+                neighbour_direction
+            )
 
             # Map +z to the normal, and +x to the projected neighbour direction.
             rotations[vertex_id, :, 0] = neighbour_direction

@@ -49,7 +49,7 @@ def raw(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     avg = deformation_field.mean()
     result = torchmin.minimize(
         partial(residue, mesh=mesh, deformation_field=deformation_field),
-        torch.tensor([avg, 0]).double().repeat_interleave(3),
+        torch.tensor([avg.detach(), 0]).double().repeat_interleave(3),
         "newton-cg",
     )
     return result.fun
