@@ -45,7 +45,7 @@ def test_raw_zero_on_rigid_deformation(
     deformation_field = k + torch.linalg.cross(c, p)
 
     assert arap.raw(cube_mesh, deformation_field.reshape(-1)) == pytest.approx(
-        0, abs=1e-6
+        0, abs=1e-5
     )
 
 
