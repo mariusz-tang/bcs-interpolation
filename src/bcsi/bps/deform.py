@@ -5,9 +5,8 @@ Deformations are assumed to be linear between frames.
 
 import math
 
-import numpy as np
-import scipy.optimize
 import torch
+import torchmin
 
 from bcsi import mesh
 
@@ -420,7 +419,10 @@ class Polyline:
 
 
 def split_segment_arap(
-    start: BlendedPolynomialSurface, finish: BlendedPolynomialSurface
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
+    resolution: int = 0,
+    num_frames: int = 4,
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric."""
     num_vert_coeffs = start.proxy.vertices.numel()
@@ -433,17 +435,21 @@ def split_segment_arap(
             proxy, start.degree, start.global_scale, coeffs, start.beta
         )
 
-    def calc_energy(x: np.typing.ArrayLike) -> torch.Tensor:
-        x = torch.as_tensor(x)
+    def calc_energy(x: torch.Tensor) -> torch.Tensor:
         bps = make_bps(x)
-        return energy(start, bps, 0, 4) + energy(bps, finish, 0, 4)
+        return energy(start, bps, resolution, num_frames) + energy(
+            bps, finish, resolution, num_frames
+        )
 
     midpoint = make_frame(start, finish, 0.5)
 
-    x0 = torch.cat(
-        [midpoint.proxy.vertices.reshape(-1), midpoint.coefficients.reshape(-1)]
+    x0 = torch.cat([midpoint.proxy.vertices.flatten(), midpoint.coefficients.flatten()])
+
+    result = torchmin.minimize(
+        calc_energy,
+        x0,
+        "newton-cg",
     )
-    result = scipy.optimize.minimize(calc_energy, x0.numpy())
     intermediate_frame = make_bps(torch.as_tensor(result.x))
 
     return Polyline(start, intermediate_frame, finish)
