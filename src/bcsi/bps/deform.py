@@ -423,6 +423,7 @@ def split_segment_arap(
     finish: BlendedPolynomialSurface,
     resolution: int = 0,
     num_frames: int = 4,
+    init: BlendedPolynomialSurface | None = None,
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric."""
     num_vert_coeffs = start.proxy.vertices.numel()
@@ -443,9 +444,10 @@ def split_segment_arap(
         print(e.item())
         return e
 
-    midpoint = make_frame(start, finish, 0.5)
+    if init is None:
+        init = make_frame(start, finish, 0.5)
 
-    x0 = torch.cat([midpoint.proxy.vertices.flatten(), midpoint.coefficients.flatten()])
+    x0 = torch.cat([init.proxy.vertices.flatten(), init.coefficients.flatten()])
 
     result = torchmin.minimize(
         calc_energy,
