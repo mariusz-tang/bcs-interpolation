@@ -437,9 +437,11 @@ def split_segment_arap(
 
     def calc_energy(x: torch.Tensor) -> torch.Tensor:
         bps = make_bps(x)
-        return energy(start, bps, resolution, num_frames) + energy(
+        e = energy(start, bps, resolution, num_frames) + energy(
             bps, finish, resolution, num_frames
         )
+        print(e.item())
+        return e
 
     midpoint = make_frame(start, finish, 0.5)
 
