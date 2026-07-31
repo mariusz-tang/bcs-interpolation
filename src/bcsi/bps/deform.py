@@ -425,7 +425,16 @@ def split_segment_arap(
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
 ) -> Polyline:
-    """Find a two-segment polyline to connect two BPSs using the ARAP metric."""
+    """Find a two-segment polyline to connect two BPSs using the ARAP metric.
+
+    :param start: The start-point of the polyline.
+    :param finish: The end-point of the polyline.
+    :param resolution: The resolution to use when evaluating the ARAP metric.
+    :param num_frames: The number of frames to use per segment when evaluating
+    the ARAP metric.
+    :param init: The initial guess for the midpoint of the polyline. The default
+    is to linearly interpolate halfway between `start` and `finish`.
+    """
     num_vert_coeffs = start.proxy.vertices.numel()
 
     def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
