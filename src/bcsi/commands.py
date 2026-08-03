@@ -277,6 +277,10 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     """Construct a BPS deformation and save screenshots."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:
         raise ValueError(f"expected at least 2 frames but received {num_frames}")
+    if args.method == "arap" and num_frames != 2:
+        raise ValueError(
+            f"must provide exactly 2 frames for arap method but received {num_frames}"
+        )
 
     child = io.read_mesh(args.submesh_path)
     parent = io.read_mesh(args.parent_mesh_path)
@@ -291,18 +295,40 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
 
     if args.method == "linear":
         keyframes = bps_list
+        polyline = bps.deform.Polyline(*keyframes)
+    elif args.method == "arap":
+        arap_resolution = 0
+        arap_num_frames = 3
+        polyline = bps.deform.split_segment_arap(
+            bps_list[0], bps_list[1], arap_resolution, arap_num_frames
+        )
 
-    polyline = bps.deform.Polyline(*keyframes)
     frames = []
     for i in range(args.num_frames):
         frames.append(polyline.get_frame(i / (args.num_frames - 1)))
 
-    output_dir = io.output_dir("screenshots")
+    screenshot_dir = io.output_dir("screenshots")
+    mesh_dir = screenshot_dir / "meshes"
 
     for i, frame in enumerate(frames):
+        name = f"{output_name}-{i}"
+        render = bps.render.surface(frame, args.resolution)
         if args.visualize:
-            render = bps.render.surface(frame, args.resolution)
             mesh.show(render)
-            screenshot.mesh(render, output_dir, f"{output_name}-{i}")
-        else:
-            screenshot.bps(frame, output_dir, f"{output_name}-{i}", args.resolution)
+        screenshot.mesh(render, screenshot_dir, name)
+        io.write_mesh(render, mesh_dir / f"{name}.ply")
+
+    if args.method == "arap":
+        midpoint = polyline.get_frame(0.5)
+        io.write_mesh(
+            bps.render.surface(midpoint, args.resolution),
+            mesh_dir / f"{output_name}-midpoint.ply",
+        )
+        io.write_mesh(
+            midpoint.proxy,
+            mesh_dir / f"{output_name}-midpoint-proxy.ply",
+        )
+        # Also save as torch tensors just in case.
+        torch.save(midpoint.proxy.vertices, mesh_dir / f"{output_name}.vertices.pt")
+        torch.save(midpoint.proxy.triangles, mesh_dir / f"{output_name}.triangles.pt")
+        torch.save(midpoint.coefficients, mesh_dir / f"{output_name}.coefficients.pt")
