@@ -462,6 +462,7 @@ def split_segment_arap(
         calc_energy,
         x0,
         "newton-cg",
+        disp=True,
     )
     intermediate_frame = make_bps(torch.as_tensor(result.x))
 
