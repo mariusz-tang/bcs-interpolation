@@ -185,6 +185,8 @@ def get_parser() -> argparse.ArgumentParser:
 
     deform_bps = subparsers.add_parser(
         "deform-bps",
+        help="create a deformation from a BPS sequence",
+        description="Create a deformation from a sequence of BPS objects.",
         parents=[base_parser, bps_parser],
     )
     deform_bps.add_argument(
