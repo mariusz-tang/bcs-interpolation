@@ -275,26 +275,22 @@ def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
 
 def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     """Construct a BPS deformation and save screenshots."""
+    if (num_frames := len(args.frame_mesh_paths)) < 2:
+        raise ValueError(f"expected at least 2 frames but received {num_frames}")
+
     child = io.read_mesh(args.submesh_path)
     parent = io.read_mesh(args.parent_mesh_path)
     reference_pair = mesh.submesh.Pair(child, parent)
 
-    start_parent = io.read_mesh(args.start_mesh_path)
-    start_pair = mesh.submesh.new_frame(reference_pair, start_parent)
-    start_bps = mesh.submesh.create_bps_degree_one(
-        start_pair, args.degree, args.scale, args.beta
-    )
-    bps.cache.onerings(args.submesh_path.name, start_bps)
+    frame_pairs = [
+        mesh.submesh.new_frame(reference_pair, io.read_mesh(p))
+        for p in args.frame_mesh_paths
+    ]
 
-    finish_parent = io.read_mesh(args.finish_mesh_path)
-    finish_pair = mesh.submesh.new_frame(reference_pair, finish_parent)
-    finish_bps = mesh.submesh.create_bps_degree_one(
-        finish_pair, args.degree, args.scale, args.beta
-    )
-    bps.cache.onerings(args.submesh_path.name, finish_bps)
+    bps_list = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
     if args.method == "linear":
-        keyframes = [start_bps, finish_bps]
+        keyframes = bps_list
 
     polyline = bps.deform.Polyline(*keyframes)
     frames = []

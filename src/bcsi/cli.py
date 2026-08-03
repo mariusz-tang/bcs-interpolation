@@ -196,13 +196,9 @@ def get_parser() -> argparse.ArgumentParser:
         "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
     )
     deform_bps.add_argument(
-        "start_mesh_path",
-        help="path to parent mesh file at the start of the deformation",
-        type=pathlib.Path,
-    )
-    deform_bps.add_argument(
-        "finish_mesh_path",
-        help="path to parent mesh file at the end of the deformation",
+        "frame_mesh_paths",
+        help="paths to parent meshes at each frame",
+        nargs="+",
         type=pathlib.Path,
     )
     deform_bps.add_argument(
