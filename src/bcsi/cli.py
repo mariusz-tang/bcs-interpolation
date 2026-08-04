@@ -215,6 +215,39 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
+    deformation_energy = subparsers.add_parser(
+        "deformation-energy",
+        help="calculate the energy from a BPS deformation",
+        description="Calculate the ARAP energy from a BPS polyline deformation.",
+        parents=[base_parser, bps_parser],
+    )
+    deformation_energy.add_argument(
+        "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
+    )
+    deformation_energy.add_argument(
+        "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
+    )
+    deformation_energy.add_argument(
+        "frame_paths",
+        help="path(s) to new poses of the parent mesh to create frames from",
+        nargs="+",
+        type=pathlib.Path,
+    )
+    deformation_energy.add_argument(
+        "--intermediate-proxy-paths",
+        help="path(s) to proxy meshes in the middle of each segment",
+        nargs="*",
+        type=pathlib.Path,
+    )
+    deformation_energy.add_argument(
+        "--num-subframes",
+        type=int,
+        default=2,
+        help="number of subframes per segment, excluding endpoints, at which to "
+        "evaluate the ARAP metric (default: 2)",
+    )
+    deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
+
     return parser
 
 

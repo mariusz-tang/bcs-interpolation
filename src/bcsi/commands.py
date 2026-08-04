@@ -332,3 +332,50 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         torch.save(midpoint.proxy.vertices, mesh_dir / f"{output_name}.vertices.pt")
         torch.save(midpoint.proxy.triangles, mesh_dir / f"{output_name}.triangles.pt")
         torch.save(midpoint.coefficients, mesh_dir / f"{output_name}.coefficients.pt")
+
+
+def deformation_energy(args: argparse.Namespace, _: str) -> None:
+    """Calculate the ARAP energy of a BPS polyline deformation."""
+    if (
+        args.intermediate_proxy_paths
+        and len(args.intermediate_proxy_paths) != len(args.frame_paths) - 1
+    ):
+        raise ValueError(
+            "number of intermediate proxies should be one less than the number of "
+            "frames"
+        )
+
+    child = io.read_mesh(args.submesh_path)
+    parent = io.read_mesh(args.parent_mesh_path)
+    reference_pair = mesh.submesh.Pair(child, parent)
+
+    frame_pairs = [
+        mesh.submesh.new_frame(reference_pair, io.read_mesh(p))
+        for p in args.frame_paths
+    ]
+    intermediate_proxies = []
+    if args.intermediate_proxy_paths:
+        for path in args.intermediate_proxy_paths:
+            intermediate_proxies.append(io.read_mesh(path))
+
+    transfer_method_functions = {
+        "individual": _construct_bps_list_individual,
+        "reference": _construct_bps_list_from_reference,
+        "mean-simple": _construct_bps_list_from_mean,
+        "mean-weighted": _construct_bps_list_from_weighted_mean,
+    }
+
+    results = {}
+    for method_name, func in transfer_method_functions.items():
+        bps_list = func(reference_pair, frame_pairs, args)
+        polyline = bps.deform.Polyline(*bps_list).subdivide()
+        for i, proxy in enumerate(intermediate_proxies):
+            polyline.frames[2 * i + 1].proxy = proxy
+        results[method_name] = polyline.energy(args.resolution, args.num_subframes)
+
+    minimum = min(results.values()).item()
+    title = f"{'method':<13} | {'energy':<20} | distance from minimum"
+    print(title)
+    print("-" * len(title))
+    for method_name, result in results.items():
+        print(f"{method_name:>13} | {result:>20} | {(result - minimum).item():f}")

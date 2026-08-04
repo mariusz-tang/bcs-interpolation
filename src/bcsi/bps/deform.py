@@ -4,6 +4,7 @@ Deformations are assumed to be linear between frames.
 """
 
 import math
+from collections.abc import Iterable
 
 import torch
 import torchmin
@@ -397,7 +398,6 @@ class Polyline:
     def __init__(self, *frames: BlendedPolynomialSurface) -> None:
         """Initialize a polyline deformation from a set of keyframes."""
         self.frames = frames
-        self.num_segments = len(frames) - 1
 
     def get_frame(self, t: float) -> BlendedPolynomialSurface:
         """Get the frame at time t.
@@ -416,6 +416,46 @@ class Polyline:
         return make_frame(
             self.frames[segment_start], self.frames[segment_start + 1], segment_progress
         )
+
+    def segments(
+        self,
+    ) -> Iterable[tuple[BlendedPolynomialSurface, BlendedPolynomialSurface]]:
+        """Return an iterable over the left and right endpoints of each segment."""
+        for i in range(self.num_segments):
+            yield self.frames[i], self.frames[i + 1]
+
+    @property
+    def num_segments(self) -> int:
+        """The number of segments in this polyline."""
+        return len(self.frames) - 1
+
+    def energy(self, resolution: int, num_subframes: int = 0) -> torch.Tensor:
+        """Get the energy of this deformation.
+
+        :param num_subframes: Number of frames to use per segment, excluding
+        end-points.
+        :param resolution: Number of times to subdivide before evaluating ARAP.
+        """
+        result = torch.tensor(0)
+        for lhs, rhs in self.segments():
+            # Add two for the start- and end-points.
+            result = result + energy(lhs, rhs, resolution, num_subframes + 2)
+
+        return result
+
+    def subdivide(self) -> "Polyline":
+        """Insert a keyframe at the midpoint of each segment.
+
+        Acts in-place and returns `self`.
+        """
+        new_frames = []
+        for lhs, rhs in self.segments():
+            new_frames.append(lhs)
+            new_frames.append(make_frame(lhs, rhs, 0.5))
+        new_frames.append(self.frames[-1])
+
+        self.frames = new_frames
+        return self
 
 
 def split_segment_arap(
