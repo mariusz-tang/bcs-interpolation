@@ -334,7 +334,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         torch.save(midpoint.coefficients, mesh_dir / f"{output_name}.coefficients.pt")
 
 
-def deformation_energy(args: argparse.Namespace, _: str) -> None:
+def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """Calculate the ARAP energy of a BPS polyline deformation."""
     if (
         args.intermediate_proxy_paths
@@ -372,6 +372,18 @@ def deformation_energy(args: argparse.Namespace, _: str) -> None:
         for i, proxy in enumerate(intermediate_proxies):
             polyline.frames[2 * i + 1].proxy = proxy
         results[method_name] = polyline.energy(args.resolution, args.num_subframes)
+
+        if args.save_bps_frames:
+            for i in range(args.save_bps_frames):
+                io.write_mesh(
+                    bps.render.surface(
+                        polyline.get_frame(i / (args.save_bps_frames - 1)),
+                        args.resolution,
+                    ),
+                    io.output_dir("screenshots")
+                    / "bps_renders"
+                    / f"{output_name}-{method_name}-{i}.ply",
+                )
 
     minimum = min(results.values()).item()
     title = f"{'method':<13} | {'energy':<20} | distance from minimum"

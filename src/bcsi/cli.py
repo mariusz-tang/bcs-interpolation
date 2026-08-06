@@ -246,6 +246,13 @@ def get_parser() -> argparse.ArgumentParser:
         help="number of subframes per segment, excluding endpoints, at which to "
         "evaluate the ARAP metric (default: 2)",
     )
+    deformation_energy.add_argument(
+        "--save-bps-frames",
+        type=int,
+        default=0,
+        help="if set and non-zero, render and save this number of BPS frames "
+        "(default: 0)",
+    )
     deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
 
     return parser
