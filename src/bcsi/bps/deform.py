@@ -19,6 +19,7 @@ def energy(
     finish: BlendedPolynomialSurface,
     resolution: int,
     num_frames: int = 2,
+    lamda: float = 0.001,
 ) -> torch.Tensor:
     """Calculate BPS deformation energy.
 
@@ -39,7 +40,9 @@ def energy(
     for i in range(num_frames - 1):
         t = (1 + i) / (num_frames - 1)
         total += current
-        current = mesh.arap.metric(*bps_to_shape_space(start, finish, t, resolution))
+        current = mesh.arap.metric(
+            *bps_to_shape_space(start, finish, t, resolution), lamda
+        )
         total += current
 
     return total
@@ -429,7 +432,9 @@ class Polyline:
         """The number of segments in this polyline."""
         return len(self.frames) - 1
 
-    def energy_distribution(self, resolution: int, num_frames: int = 2) -> torch.Tensor:
+    def energy_distribution(
+        self, resolution: int, num_frames: int = 2, lamda: float = 0.001
+    ) -> torch.Tensor:
         """Get the energy distribution of this deformation.
 
         :param resolution: Number of times to subdivide before evaluating ARAP.
@@ -440,17 +445,19 @@ class Polyline:
         for i in range(num_frames - 1):
             frame = next_frame
             next_frame = self.get_frame((i + 1) / (num_frames - 1))
-            result[i] = energy(frame, next_frame, resolution)
+            result[i] = energy(frame, next_frame, resolution, lamda=lamda)
 
         return result
 
-    def energy(self, resolution: int, num_frames: int = 2) -> torch.Tensor:
+    def energy(
+        self, resolution: int, num_frames: int = 2, lamda: float = 0.001
+    ) -> torch.Tensor:
         """Get the energy of this deformation.
 
         :param resolution: Number of times to subdivide before evaluating ARAP.
         :param num_frames: Number of frames at which to evaluate the energy.
         """
-        return self.energy_distribution(resolution, num_frames).sum()
+        return self.energy_distribution(resolution, num_frames, lamda).sum()
 
     def subdivide(self) -> "Polyline":
         """Insert a keyframe at the midpoint of each segment.
