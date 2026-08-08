@@ -4,6 +4,7 @@ from collections.abc import Collection, Sequence
 from copy import deepcopy
 
 import matplotlib.pyplot as plt
+import torch
 
 
 def diff_comparison(data: Sequence[dict], dataset_names: Collection) -> plt.Figure:
@@ -52,3 +53,35 @@ def diff_comparison(data: Sequence[dict], dataset_names: Collection) -> plt.Figu
 def show() -> None:
     """Show figures."""
     plt.show()
+
+
+def energy_distributions(
+    distributions: list[torch.Tensor], labels: list[str]
+) -> plt.Figure:
+    """Plot cumulative and nominal energy distributions."""
+    if len(distributions) != len(labels):
+        raise ValueError(
+            f"number of distributions ({len(distributions)}) must match the "
+            f"number of labels ({len(labels)})"
+        )
+
+    fig, _ = plt.subplots(1, 2, layout="constrained")
+
+    cumulative = plt.subplot(121)
+    cumulative.set_title("Cumulative energy")
+    cumulative.set_xlabel("t")
+
+    nominal = plt.subplot(122)
+    nominal.set_title("Derivative")
+    nominal.set_xlabel("t")
+
+    num_frames = distributions[0].numel()
+
+    for dist, label in zip(distributions, labels, strict=True):
+        cumsum = torch.zeros(num_frames + 1)
+        cumsum[1:] = dist.cumsum(0)
+        cumulative.plot(torch.linspace(0, 1, num_frames + 1), cumsum, label=label)
+        nominal.plot(torch.linspace(0, 1, num_frames), dist / num_frames)
+
+    fig.legend()
+    return fig

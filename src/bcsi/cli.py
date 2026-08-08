@@ -254,6 +254,27 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
 
+    plot_deformation_energy = subparsers.add_parser(
+        "plot-deformation-energy",
+        help="plot the energy distributions from a BPS deformation",
+        description="Plot the energy distributions from a BPS deformation.",
+        parents=[base_parser],
+    )
+    plot_deformation_energy.add_argument(
+        "distribution_paths",
+        type=pathlib.Path,
+        nargs="+",
+        help="paths to the energy distribution tensor files",
+    )
+    plot_deformation_energy.add_argument(
+        "--labels",
+        nargs="+",
+        help="labels to assign to each distribution",
+    )
+    plot_deformation_energy.set_defaults(
+        outfile=True, func_name="plot_deformation_energy"
+    )
+
     return parser
 
 

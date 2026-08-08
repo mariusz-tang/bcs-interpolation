@@ -335,7 +335,11 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
 
 
 def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
-    """Calculate the ARAP energy of a BPS polyline deformation."""
+    """Calculate the ARAP energy of a BPS polyline deformation.
+
+    The energy distribution tensors are saved in the `energy-distributions`
+    output directory.
+    """
     if (
         args.intermediate_proxy_paths
         and len(args.intermediate_proxy_paths) != len(args.frame_paths) - 1
@@ -371,7 +375,14 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
         polyline = bps.deform.Polyline(*bps_list).subdivide()
         for i, proxy in enumerate(intermediate_proxies):
             polyline.frames[2 * i + 1].proxy = proxy
-        results[method_name] = polyline.energy(args.resolution, args.num_frames)
+
+        energy_dist = polyline.energy_distribution(args.resolution, args.num_frames)
+        torch.save(
+            energy_dist,
+            io.output_dir("energy-distributions")
+            / f"{output_name}-r{args.resolution}-{args.num_frames}f-{method_name}.pt",
+        )
+        results[method_name] = energy_dist.sum()
 
         if args.save_bps_frames:
             for i in range(args.save_bps_frames):
@@ -391,3 +402,21 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     print("-" * len(title))
     for method_name, result in results.items():
         print(f"{method_name:>13} | {result:>20} | {(result - minimum).item():f}")
+
+
+def plot_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
+    """Plot several deformation energy distributions against each other."""
+    distributions = [torch.load(path) for path in args.distribution_paths]
+    fig = plot.energy_distributions(
+        distributions, args.labels or list(map(str, range(len(distributions))))
+    )
+    io.write_figure(
+        fig,
+        io.output_dir("energy-distributions")
+        / f"energy-distribution-{output_name}.svg",
+    )
+    io.write_figure(
+        fig,
+        io.output_dir("energy-distributions")
+        / f"energy-distribution-{output_name}.png",
+    )
