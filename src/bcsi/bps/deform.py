@@ -429,19 +429,28 @@ class Polyline:
         """The number of segments in this polyline."""
         return len(self.frames) - 1
 
-    def energy(self, resolution: int, num_subframes: int = 0) -> torch.Tensor:
-        """Get the energy of this deformation.
+    def energy_distribution(self, resolution: int, num_frames: int = 2) -> torch.Tensor:
+        """Get the energy distribution of this deformation.
 
-        :param num_subframes: Number of frames to use per segment, excluding
-        end-points.
         :param resolution: Number of times to subdivide before evaluating ARAP.
+        :param num_frames: Number of frames at which to evaluate the energy.
         """
-        result = torch.tensor(0)
-        for lhs, rhs in self.segments():
-            # Add two for the start- and end-points.
-            result = result + energy(lhs, rhs, resolution, num_subframes + 2)
+        result = torch.zeros(num_frames - 1)
+        next_frame = self.frames[0]
+        for i in range(num_frames - 1):
+            frame = next_frame
+            next_frame = self.get_frame((i + 1) / (num_frames - 1))
+            result[i] = energy(frame, next_frame, resolution)
 
         return result
+
+    def energy(self, resolution: int, num_frames: int = 2) -> torch.Tensor:
+        """Get the energy of this deformation.
+
+        :param resolution: Number of times to subdivide before evaluating ARAP.
+        :param num_frames: Number of frames at which to evaluate the energy.
+        """
+        return self.energy_distribution(resolution, num_frames).sum()
 
     def subdivide(self) -> "Polyline":
         """Insert a keyframe at the midpoint of each segment.

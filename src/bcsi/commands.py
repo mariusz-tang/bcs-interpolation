@@ -371,7 +371,7 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
         polyline = bps.deform.Polyline(*bps_list).subdivide()
         for i, proxy in enumerate(intermediate_proxies):
             polyline.frames[2 * i + 1].proxy = proxy
-        results[method_name] = polyline.energy(args.resolution, args.num_subframes)
+        results[method_name] = polyline.energy(args.resolution, args.num_frames)
 
         if args.save_bps_frames:
             for i in range(args.save_bps_frames):

@@ -240,11 +240,10 @@ def get_parser() -> argparse.ArgumentParser:
         type=pathlib.Path,
     )
     deformation_energy.add_argument(
-        "--num-subframes",
+        "--num-frames",
         type=int,
-        default=2,
-        help="number of subframes per segment, excluding endpoints, at which to "
-        "evaluate the ARAP metric (default: 2)",
+        default=10,
+        help="number of frames at which to evaluate the ARAP metric (default: 10)",
     )
     deformation_energy.add_argument(
         "--save-bps-frames",
