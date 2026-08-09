@@ -299,8 +299,21 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     elif args.method == "arap":
         arap_resolution = 0
         arap_num_frames = 3
-        polyline = bps.deform.split_segment_arap(
+        polyline = bps.deform.optimize_bps_arap(
             bps_list[0], bps_list[1], arap_resolution, arap_num_frames
+        )
+    elif args.method == "arap-alternating":
+        arap_resolution = 0
+        arap_num_frames = 3
+        polyline_proxy_only = bps.deform.optimize_bps_arap_proxy_only(
+            bps_list[0], bps_list[1], arap_resolution, arap_num_frames
+        )
+        polyline = bps.deform.optimize_bps_arap_coefficients_only(
+            bps_list[0],
+            bps_list[1],
+            args.resolution,
+            2,
+            polyline_proxy_only.get_frame(0.5),
         )
 
     frames = []
@@ -318,7 +331,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         screenshot.mesh(render, screenshot_dir, name)
         io.write_mesh(render, mesh_dir / f"{name}.ply")
 
-    if args.method == "arap":
+    if args.method in ("arap", "arap-alternating"):
         midpoint = polyline.get_frame(0.5)
         io.write_mesh(
             bps.render.surface(midpoint, args.resolution),

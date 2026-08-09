@@ -4,7 +4,7 @@ Deformations are assumed to be linear between frames.
 """
 
 import math
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import torch
 import torchmin
@@ -474,7 +474,7 @@ class Polyline:
         return self
 
 
-def split_segment_arap(
+def optimize_bps_arap(
     start: BlendedPolynomialSurface,
     finish: BlendedPolynomialSurface,
     resolution: int = 0,
@@ -501,25 +501,124 @@ def split_segment_arap(
             proxy, start.degree, start.global_scale, coeffs, start.beta
         )
 
+    if init is None:
+        init = make_frame(start, finish, 0.5)
+
+    x0 = torch.cat([init.proxy.vertices.flatten(), init.coefficients.flatten()])
+
+    return _optimize_intermediate_frame(
+        start, finish, make_bps, x0, resolution, num_frames
+    )
+
+
+def optimize_bps_arap_proxy_only(
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
+    resolution: int = 0,
+    num_frames: int = 4,
+    init: BlendedPolynomialSurface | None = None,
+) -> Polyline:
+    """Find a two-segment polyline to connect two BPSs using the ARAP metric.
+
+    This function optimizes the proxy only; the coefficients remain unchanged.
+
+    :param start: The start-point of the polyline.
+    :param finish: The end-point of the polyline.
+    :param resolution: The resolution to use when evaluating the ARAP metric.
+    :param num_frames: The number of frames to use per segment when evaluating
+    the ARAP metric.
+    :param init: The initial guess for the midpoint of the polyline. The default
+    is to linearly interpolate halfway between `start` and `finish`.
+    """
+    if init is None:
+        init = make_frame(start, finish, 0.5)
+
+    def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
+        verts = x.reshape(start.proxy.vertices.shape)
+        proxy = mesh.TriangleMesh(verts, start.proxy.triangles)
+        return BlendedPolynomialSurface(
+            proxy, start.degree, start.global_scale, init.coefficients, start.beta
+        )
+
+    x0 = init.proxy.vertices.flatten()
+
+    return _optimize_intermediate_frame(
+        start, finish, make_bps, x0, resolution, num_frames, xtol=1e-2
+    )
+
+
+def optimize_bps_arap_coefficients_only(
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
+    resolution: int = 0,
+    num_frames: int = 4,
+    init: BlendedPolynomialSurface | None = None,
+) -> Polyline:
+    """Find a two-segment polyline to connect two BPSs using the ARAP metric.
+
+    This function optimizes the coefficients only; the proxy remains unchanged.
+
+    :param start: The start-point of the polyline.
+    :param finish: The end-point of the polyline.
+    :param resolution: The resolution to use when evaluating the ARAP metric.
+    :param num_frames: The number of frames to use per segment when evaluating
+    the ARAP metric.
+    :param init: The initial guess for the midpoint of the polyline. The default
+    is to linearly interpolate halfway between `start` and `finish`.
+    """
+    if init is None:
+        init = make_frame(start, finish, 0.5)
+
+    def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
+        coeffs = torch.zeros_like(start.coefficients)
+        coeffs[..., 1:] = x.reshape(start.coefficients[..., 1:].shape)
+        return BlendedPolynomialSurface(
+            init.proxy, start.degree, start.global_scale, coeffs, start.beta
+        )
+
+    x0 = init.coefficients[..., 1:].flatten()
+
+    return _optimize_intermediate_frame(
+        start, finish, make_bps, x0, resolution, num_frames
+    )
+
+
+def _optimize_intermediate_frame(
+    start: BlendedPolynomialSurface,
+    finish: BlendedPolynomialSurface,
+    make_bps_func: Callable[[torch.Tensor], BlendedPolynomialSurface],
+    x0: torch.Tensor,
+    resolution: int = 0,
+    num_frames: int = 4,
+    xtol: float = 1e-5,
+) -> Polyline:
+    """Find a two-segment polyline to connect two BPSs using the ARAP metric.
+
+    :param start: The start-point of the polyline.
+    :param finish: The end-point of the polyline.
+    :param make_bps_func: Function that produces a BPS from input data.
+    :param x0: The initial guess.
+    :param resolution: The resolution to use when evaluating the ARAP metric.
+    :param num_frames: The number of frames to use per segment when evaluating
+    the ARAP metric.
+    :param xtol: average relative error in solution acceptable for convergence.
+    """
+
     def calc_energy(x: torch.Tensor) -> torch.Tensor:
-        bps = make_bps(x)
+        bps = make_bps_func(x)
         e = energy(start, bps, resolution, num_frames) + energy(
             bps, finish, resolution, num_frames
         )
         print(e.item())
         return e
 
-    if init is None:
-        init = make_frame(start, finish, 0.5)
-
-    x0 = torch.cat([init.proxy.vertices.flatten(), init.coefficients.flatten()])
-
     result = torchmin.minimize(
         calc_energy,
         x0,
         "newton-cg",
         disp=True,
+        options={"xtol": xtol},
     )
-    intermediate_frame = make_bps(torch.as_tensor(result.x))
+    intermediate_frame = make_bps_func(result.x)
 
     return Polyline(start, intermediate_frame, finish)

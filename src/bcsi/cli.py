@@ -209,7 +209,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deform_bps.add_argument(
         "--method",
-        choices=["linear", "arap"],
+        choices=["linear", "arap", "arap-alternating"],
         default="linear",
         help="interpolation method (default: linear)",
     )
