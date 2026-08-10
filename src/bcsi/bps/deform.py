@@ -309,12 +309,13 @@ def _derivative_of_vertex_normals(
     y_prime = triangle_v_primes[:, 1]
     z_prime = triangle_v_primes[:, 2]
 
+    unscaled_face_normals = torch.linalg.cross(y - x, z - x)
     face_normal_derivatives = torch.linalg.cross(
         y_prime - x_prime, z - x
     ) + torch.linalg.cross(y - x, z_prime - x_prime)
 
+    unscaled_vertex_normals = torch.zeros_like(proxy.vertex_normals)
     vertex_normal_derivatives = torch.zeros_like(proxy.vertex_normals)
-    vertex_face_counts = torch.zeros(proxy.num_vertices, 1)
 
     # In the following, we assume that there are no boundary vertices.
     # For each vertex of a face...
@@ -323,15 +324,14 @@ def _derivative_of_vertex_normals(
         vi = proxy.triangles[:, i]
 
         # Update the accumulators.
+        unscaled_vertex_normals = torch.index_add(
+            unscaled_vertex_normals, 0, vi, unscaled_face_normals
+        )
         vertex_normal_derivatives = torch.index_add(
             vertex_normal_derivatives, 0, vi, face_normal_derivatives
         )
-        vertex_face_counts = torch.index_add(
-            vertex_face_counts, 0, vi, torch.ones((proxy.num_triangles, 1))
-        )
 
-    vertex_normal_derivatives /= vertex_face_counts
-    return _derivative_of_unit(proxy.vertex_normals, vertex_normal_derivatives)
+    return _derivative_of_unit(unscaled_vertex_normals, vertex_normal_derivatives)
 
 
 def _derivative_of_neighbour_directions(
