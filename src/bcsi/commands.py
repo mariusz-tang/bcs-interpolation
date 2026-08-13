@@ -268,9 +268,15 @@ def plot_diffs(args: argparse.Namespace, output_name: str) -> None:
 
 def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
     """Take screenshots of a mesh."""
-    mesh_ = io.read_mesh(args.mesh_path)
+    camera_view = None
+    if cv := args.camera_view:
+        camera_view = {"custom": {"front": cv[:3], "up": cv[3:]}}
+
     output_dir = io.output_dir("screenshots")
-    screenshot.mesh(mesh_, output_dir, output_name)
+
+    for i, path in enumerate(args.mesh_path):
+        mesh_ = io.read_mesh(path)
+        screenshot.mesh(mesh_, output_dir, f"{output_name}-{i}", camera_view, args.zoom)
 
 
 def deform_bps(args: argparse.Namespace, output_name: str) -> None:

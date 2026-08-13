@@ -179,8 +179,17 @@ def get_parser() -> argparse.ArgumentParser:
         description="Save screenshots of a mesh from various angles.",
     )
     screenshot_mesh.add_argument(
-        "mesh_path", help="path to mesh file", type=pathlib.Path
+        "mesh_path", help="paths to mesh files", nargs="+", type=pathlib.Path
     )
+    screenshot_mesh.add_argument(
+        "--camera-view",
+        help="a sequence of six numbers representing the camera view (the first "
+        "three represent the 'front' direction and the last three the 'up' "
+        "direction)",
+        type=float,
+        nargs=6,
+    )
+    screenshot_mesh.add_argument("--zoom", help="zoom level", type=float)
     screenshot_mesh.set_defaults(outfile=True, func_name="screenshot_mesh")
 
     deform_bps = subparsers.add_parser(

@@ -15,13 +15,21 @@ def bps(
     save_dir: pathlib.Path,
     filename: str,
     resolution: int = 5,
+    camera_views: dict | None = None,
+    zoom: float | None = None,
 ) -> None:
     """Save a linear deformation in BPS space as a series of screenshots."""
     mesh_ = bcsi.bps.render.surface(bps, resolution)
-    mesh(mesh_, save_dir, f"{filename}")
+    mesh(mesh_, save_dir, f"{filename}", camera_views, zoom)
 
 
-def mesh(mesh: bcsi.mesh.TriangleMesh, save_dir: pathlib.Path, filename: str) -> None:
+def mesh(
+    mesh: bcsi.mesh.TriangleMesh,
+    save_dir: pathlib.Path,
+    filename: str,
+    camera_views: dict | None = None,
+    zoom: float | None = None,
+) -> None:
     """Save screenshots of a mesh from various angles."""
     visualizer = o3d.visualization.Visualizer()
     visualizer.create_window()
@@ -32,10 +40,11 @@ def mesh(mesh: bcsi.mesh.TriangleMesh, save_dir: pathlib.Path, filename: str) ->
     control = visualizer.get_view_control()
     control.set_zoom(0.7)
 
-    camera_views = {
+    camera_views = camera_views or {
         "x": {"front": [1, 0, 0], "up": [0, 0, 1]},
         "y": {"front": [0, 1, 0], "up": [0, 0, 1]},
         "z": {"front": [0, 0, 1], "up": [0, 1, 0]},
+        "w": {"front": [1, 1, 1], "up": [0, 1, 0]},
     }
     centre = mesh.vertices.mean(dim=0).numpy()
 
@@ -43,6 +52,8 @@ def mesh(mesh: bcsi.mesh.TriangleMesh, save_dir: pathlib.Path, filename: str) ->
         control.set_lookat(centre)
         control.set_front(np.array(params["front"]))
         control.set_up(np.array(params["up"]))
+        if zoom:
+            control.set_zoom(zoom)
 
         visualizer.poll_events()
         visualizer.update_renderer()
