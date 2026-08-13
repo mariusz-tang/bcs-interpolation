@@ -378,11 +378,11 @@ def plot_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     )
     io.write_figure(
         fig,
-        io.output_dir("energy-distributions")
+        io.output_dir("energy-distributions/plots")
         / f"energy-distribution-{output_name}.svg",
     )
     io.write_figure(
         fig,
-        io.output_dir("energy-distributions")
+        io.output_dir("energy-distributions/plots")
         / f"energy-distribution-{output_name}.png",
     )
