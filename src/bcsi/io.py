@@ -5,8 +5,9 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import open3d as o3d
+import torch
 
-from bcsi import ROOT_DIR, mesh
+from bcsi import ROOT_DIR, bps, mesh
 
 
 def output_dir(name: str | None = None) -> pathlib.Path:
@@ -50,6 +51,42 @@ def write_mesh(
         write_vertex_colors=write_vertex_colors,
         write_triangle_uvs=False,
     )
+
+
+def write_polyline(polyline: bps.deform.Polyline, path: pathlib.Path) -> None:
+    """Write a BPS polyline deformation to a file."""
+    result = []
+    for bps_ in polyline.frames:
+        result.append(
+            {
+                "vertices": bps_.proxy.vertices,
+                "triangles": bps_.proxy.triangles,
+                "coefficients": bps_.coefficients,
+                "degree": bps_.degree,
+                "global_scale": bps_.global_scale,
+                "beta": bps_.beta,
+            }
+        )
+
+    print(f"Writing polyline to {path}")
+    torch.save(result, path)
+
+
+def read_polyline(path: pathlib.Path) -> bps.deform.Polyline:
+    """Read a BPS polyline deformation from a file."""
+    data = torch.load(path)
+    frames = []
+    for bps_data in data:
+        frames.append(
+            bps.BlendedPolynomialSurface(
+                mesh.TriangleMesh(bps_data["vertices"], bps_data["triangles"]),
+                bps_data["degree"],
+                bps_data["global_scale"],
+                bps_data["coefficients"],
+                bps_data["beta"],
+            )
+        )
+    return bps.deform.Polyline(*frames)
 
 
 def write_figure(figure: plt.Figure, path: pathlib.Path) -> None:

@@ -211,12 +211,6 @@ def get_parser() -> argparse.ArgumentParser:
         type=pathlib.Path,
     )
     deform_bps.add_argument(
-        "--num-frames",
-        default=10,
-        type=int,
-        help="number of frames to generate (default: 10)",
-    )
-    deform_bps.add_argument(
         "--method",
         choices=["linear", "arap", "arap-alternating"],
         default="linear",
@@ -228,38 +222,22 @@ def get_parser() -> argparse.ArgumentParser:
         "deformation-energy",
         help="calculate the energy from a BPS deformation",
         description="Calculate the ARAP energy from a BPS polyline deformation.",
-        parents=[base_parser, bps_parser],
+        parents=[base_parser],
     )
     deformation_energy.add_argument(
-        "submesh_path", help="path to coarse proxy mesh file", type=pathlib.Path
+        "polyline_path", help="path to polyline file", type=pathlib.Path
     )
     deformation_energy.add_argument(
-        "parent_mesh_path", help="path to fine parent mesh file", type=pathlib.Path
-    )
-    deformation_energy.add_argument(
-        "frame_paths",
-        help="path(s) to new poses of the parent mesh to create frames from",
-        nargs="+",
-        type=pathlib.Path,
-    )
-    deformation_energy.add_argument(
-        "--intermediate-proxy-paths",
-        help="path(s) to proxy meshes in the middle of each segment",
-        nargs="*",
-        type=pathlib.Path,
+        "--resolution",
+        default=3,
+        type=int,
+        help="resolution with which to render blended chart surfaces (default: 3)",
     )
     deformation_energy.add_argument(
         "--num-frames",
         type=int,
-        default=10,
+        default=15,
         help="number of frames at which to evaluate the ARAP metric (default: 10)",
-    )
-    deformation_energy.add_argument(
-        "--save-bps-frames",
-        type=int,
-        default=0,
-        help="if set and non-zero, render and save this number of BPS frames "
-        "(default: 0)",
     )
     deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
 

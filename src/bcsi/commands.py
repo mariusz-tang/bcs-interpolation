@@ -280,7 +280,7 @@ def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
 
 
 def deform_bps(args: argparse.Namespace, output_name: str) -> None:
-    """Construct a BPS deformation and save screenshots."""
+    """Construct a BPS deformation and save the resulting polyline."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:
         raise ValueError(f"expected at least 2 frames but received {num_frames}")
     if args.method == "arap" and num_frames != 2:
@@ -314,6 +314,10 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         polyline_proxy_only = bps.deform.optimize_bps_arap_proxy_only(
             bps_list[0], bps_list[1], arap_resolution, arap_num_frames
         )
+        io.write_polyline(
+            polyline_proxy_only,
+            io.output_dir("polylines") / f"{output_name}-proxy-only.polyline",
+        )
         polyline = bps.deform.optimize_bps_arap_coefficients_only(
             bps_list[0],
             bps_list[1],
@@ -322,35 +326,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
             polyline_proxy_only.get_frame(0.5),
         )
 
-    frames = []
-    for i in range(args.num_frames):
-        frames.append(polyline.get_frame(i / (args.num_frames - 1)))
-
-    screenshot_dir = io.output_dir("screenshots")
-    mesh_dir = screenshot_dir / "meshes"
-
-    for i, frame in enumerate(frames):
-        name = f"{output_name}-{i}"
-        render = bps.render.surface(frame, args.resolution)
-        if args.visualize:
-            mesh.show(render)
-        screenshot.mesh(render, screenshot_dir, name)
-        io.write_mesh(render, mesh_dir / f"{name}.ply")
-
-    if args.method in ("arap", "arap-alternating"):
-        midpoint = polyline.get_frame(0.5)
-        io.write_mesh(
-            bps.render.surface(midpoint, args.resolution),
-            mesh_dir / f"{output_name}-midpoint.ply",
-        )
-        io.write_mesh(
-            midpoint.proxy,
-            mesh_dir / f"{output_name}-midpoint-proxy.ply",
-        )
-        # Also save as torch tensors just in case.
-        torch.save(midpoint.proxy.vertices, mesh_dir / f"{output_name}.vertices.pt")
-        torch.save(midpoint.proxy.triangles, mesh_dir / f"{output_name}.triangles.pt")
-        torch.save(midpoint.coefficients, mesh_dir / f"{output_name}.coefficients.pt")
+    io.write_polyline(polyline, io.output_dir("polylines") / f"{output_name}.polyline")
 
 
 def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
@@ -359,68 +335,15 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     The energy distribution tensors are saved in the `energy-distributions`
     output directory.
     """
-    if (
-        args.intermediate_proxy_paths
-        and len(args.intermediate_proxy_paths) != len(args.frame_paths) - 1
-    ):
-        raise ValueError(
-            "number of intermediate proxies should be one less than the number of "
-            "frames"
-        )
+    polyline = io.read_polyline(args.polyline_path)
 
-    child = io.read_mesh(args.submesh_path)
-    parent = io.read_mesh(args.parent_mesh_path)
-    reference_pair = mesh.submesh.Pair(child, parent)
-
-    frame_pairs = [
-        mesh.submesh.new_frame(reference_pair, io.read_mesh(p))
-        for p in args.frame_paths
-    ]
-    intermediate_proxies = []
-    if args.intermediate_proxy_paths:
-        for path in args.intermediate_proxy_paths:
-            intermediate_proxies.append(io.read_mesh(path))
-
-    transfer_method_functions = {
-        "individual": _construct_bps_list_individual,
-        "reference": _construct_bps_list_from_reference,
-        "mean-simple": _construct_bps_list_from_mean,
-        "mean-weighted": _construct_bps_list_from_weighted_mean,
-    }
-
-    results = {}
-    for method_name, func in transfer_method_functions.items():
-        bps_list = func(reference_pair, frame_pairs, args)
-        polyline = bps.deform.Polyline(*bps_list).subdivide()
-        for i, proxy in enumerate(intermediate_proxies):
-            polyline.frames[2 * i + 1].proxy = proxy
-
-        energy_dist = polyline.energy_distribution(args.resolution, args.num_frames)
-        torch.save(
-            energy_dist,
-            io.output_dir("energy-distributions")
-            / f"{output_name}-r{args.resolution}-{args.num_frames}f-{method_name}.pt",
-        )
-        results[method_name] = energy_dist.sum()
-
-        if args.save_bps_frames:
-            for i in range(args.save_bps_frames):
-                io.write_mesh(
-                    bps.render.surface(
-                        polyline.get_frame(i / (args.save_bps_frames - 1)),
-                        args.resolution,
-                    ),
-                    io.output_dir("screenshots")
-                    / "bps_renders"
-                    / f"{output_name}-{method_name}-{i}.ply",
-                )
-
-    minimum = min(results.values()).item()
-    title = f"{'method':<13} | {'energy':<20} | distance from minimum"
-    print(title)
-    print("-" * len(title))
-    for method_name, result in results.items():
-        print(f"{method_name:>13} | {result:>20} | {(result - minimum).item():f}")
+    energy_dist = polyline.energy_distribution(args.resolution, args.num_frames)
+    torch.save(
+        energy_dist,
+        io.output_dir("energy-distributions")
+        / f"{output_name}-r{args.resolution}-{args.num_frames}f.pt",
+    )
+    print(energy_dist.sum().item())
 
 
 def plot_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
