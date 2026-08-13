@@ -279,6 +279,30 @@ def screenshot_mesh(args: argparse.Namespace, output_name: str) -> None:
         screenshot.mesh(mesh_, output_dir, f"{output_name}-{i}", camera_view, args.zoom)
 
 
+def screenshot_polyline(args: argparse.Namespace, output_name: str) -> None:
+    """Take screenshots of a polyline deformation."""
+    camera_view = None
+    if cv := args.camera_view:
+        camera_view = {"custom": {"front": cv[:3], "up": cv[3:]}}
+
+    output_dir = io.output_dir("screenshots") / "polylines" / output_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    polyline = io.read_polyline(args.polyline_path)
+
+    for i in range(args.num_frames):
+        mesh_ = bps.render.surface(
+            polyline.get_frame(i / (args.num_frames - 1)), args.resolution
+        )
+        screenshot.mesh(
+            mesh_,
+            output_dir,
+            f"{output_name}-r{args.resolution}-{i}",
+            camera_view,
+            args.zoom,
+        )
+
+
 def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     """Construct a BPS deformation and save the resulting polyline."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:

@@ -192,6 +192,35 @@ def get_parser() -> argparse.ArgumentParser:
     screenshot_mesh.add_argument("--zoom", help="zoom level", type=float)
     screenshot_mesh.set_defaults(outfile=True, func_name="screenshot_mesh")
 
+    screenshot_polyline = subparsers.add_parser(
+        "screenshot-polyline",
+        parents=[base_parser],
+        help="save screenshots of a BPS polyline deformation",
+        description="Save screenshots of a BPS polyline deformation.",
+    )
+    screenshot_polyline.add_argument(
+        "polyline_path", help="path to polyline file", type=pathlib.Path
+    )
+    screenshot_polyline.add_argument(
+        "--camera-view",
+        help="a sequence of six numbers representing the camera view (the first "
+        "three represent the 'front' direction and the last three the 'up' "
+        "direction)",
+        type=float,
+        nargs=6,
+    )
+    screenshot_polyline.add_argument("--zoom", help="zoom level", type=float)
+    screenshot_polyline.add_argument(
+        "--resolution",
+        default=3,
+        type=int,
+        help="resolution with which to render blended chart surfaces (default: 3)",
+    )
+    screenshot_polyline.add_argument(
+        "--num-frames", default=10, type=int, help="number of screenshots to take"
+    )
+    screenshot_polyline.set_defaults(outfile=True, func_name="screenshot_polyline")
+
     deform_bps = subparsers.add_parser(
         "deform-bps",
         help="create a deformation from a BPS sequence",
