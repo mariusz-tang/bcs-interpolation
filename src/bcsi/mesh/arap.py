@@ -33,7 +33,7 @@ def residue(
     rigid_deformation_field = k + torch.linalg.cross(c, p)
 
     diff = deformation_field - rigid_deformation_field.reshape(-1)
-    return torch.linalg.norm(diff)
+    return torch.sum(diff**2) / mesh.num_vertices
 
 
 def _jacobian_of_residue(
@@ -115,7 +115,7 @@ def l2(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
 
 
 def metric(
-    mesh: TriangleMesh, deformation_field: torch.Tensor, lamda: float = 0.001
+    mesh: TriangleMesh, deformation_field: torch.Tensor, lamda: float = 1e-6
 ) -> torch.Tensor:
     """Calculate the full, regularized ARAP metric."""
     return raw(mesh, deformation_field) + lamda * l2(mesh, deformation_field)

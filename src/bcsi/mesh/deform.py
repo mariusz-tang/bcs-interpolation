@@ -16,7 +16,7 @@ def make_frame(start: TriangleMesh, finish: TriangleMesh, t: float) -> TriangleM
 def energy(
     start: TriangleMesh,
     finish: TriangleMesh,
-    lamda: float = 0.001,
+    lamda: float = 1e-6,
 ) -> torch.Tensor:
     """Calculate deformation energy (for a linear deformation) between two frames."""
     dv_dt = (finish.vertices - start.vertices).flatten()
@@ -54,7 +54,7 @@ class Polyline:
         return len(self.frames) - 1
 
     def energy_distribution(
-        self, num_frames: int = 2, lamda: float = 0.001
+        self, num_frames: int = 2, lamda: float = 1e-6
     ) -> torch.Tensor:
         """Get the energy distribution of this deformation.
 
@@ -65,11 +65,11 @@ class Polyline:
         for i in range(num_frames - 1):
             frame = next_frame
             next_frame = self.get_frame((i + 1) / (num_frames - 1))
-            result[i] = energy(frame, next_frame, lamda=lamda)
+            result[i] = energy(frame, next_frame, lamda=lamda) * (num_frames - 1)
 
         return result
 
-    def energy(self, num_frames: int = 2, lamda: float = 0.001) -> torch.Tensor:
+    def energy(self, num_frames: int = 2, lamda: float = 1e-6) -> torch.Tensor:
         """Get the energy of this deformation.
 
         :param num_frames: Number of frames at which to evaluate the energy.

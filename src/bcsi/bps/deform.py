@@ -19,7 +19,7 @@ def energy(
     finish: BlendedPolynomialSurface,
     resolution: int,
     num_frames: int = 2,
-    lamda: float = 0.001,
+    lamda: float = 1e-6,
 ) -> torch.Tensor:
     """Calculate BPS deformation energy.
 
@@ -35,7 +35,7 @@ def energy(
 
     total = torch.tensor(0).double()
 
-    current = mesh.arap.metric(*bps_to_shape_space(start, finish, 0, resolution))
+    current = mesh.arap.metric(*bps_to_shape_space(start, finish, 0, resolution), lamda)
 
     for i in range(num_frames - 1):
         t = (1 + i) / (num_frames - 1)
@@ -45,7 +45,7 @@ def energy(
         )
         total += current
 
-    return total
+    return total / (num_frames - 1)
 
 
 def make_frame(
@@ -438,7 +438,7 @@ class Polyline:
         return len(self.frames) - 1
 
     def energy_distribution(
-        self, resolution: int, num_frames: int = 2, lamda: float = 0.001
+        self, resolution: int, num_frames: int = 2, lamda: float = 1e-6
     ) -> torch.Tensor:
         """Get the energy distribution of this deformation.
 
@@ -450,12 +450,14 @@ class Polyline:
         for i in range(num_frames - 1):
             frame = next_frame
             next_frame = self.get_frame((i + 1) / (num_frames - 1))
-            result[i] = energy(frame, next_frame, resolution, lamda=lamda)
+            result[i] = energy(frame, next_frame, resolution, lamda=lamda) * (
+                num_frames - 1
+            )
 
         return result
 
     def energy(
-        self, resolution: int, num_frames: int = 2, lamda: float = 0.001
+        self, resolution: int, num_frames: int = 2, lamda: float = 1e-6
     ) -> torch.Tensor:
         """Get the energy of this deformation.
 
@@ -611,9 +613,9 @@ def _optimize_intermediate_frame(
 
     def calc_energy(x: torch.Tensor) -> torch.Tensor:
         bps = make_bps_func(x)
-        e = energy(start, bps, resolution, num_frames) + energy(
-            bps, finish, resolution, num_frames
-        )
+        bps.triangle_onering_flips = start.triangle_onering_flips
+        bps.triangle_onering_indices = start.triangle_onering_indices
+        e = Polyline(start, bps, finish).energy(resolution, 2 * num_frames - 1)
         print(e.item())
         return e
 
