@@ -266,7 +266,7 @@ def get_parser() -> argparse.ArgumentParser:
         "--num-frames",
         type=int,
         default=15,
-        help="number of frames at which to evaluate the ARAP metric (default: 10)",
+        help="number of frames at which to evaluate the ARAP metric (default: 15)",
     )
     deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
 
