@@ -353,6 +353,19 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     io.write_polyline(polyline, io.output_dir("polylines") / f"{output_name}.polyline")
 
 
+def save_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
+    """Save a sequence of meshes corresponding to a polyline."""
+    polyline = io.read_polyline(args.polyline_path)
+
+    for i in range(args.num_frames):
+        mesh_ = bps.render.surface(
+            polyline.get_frame(i / (args.num_frames - 1)), args.resolution
+        )
+        io.write_mesh(
+            mesh_, io.output_dir("polylines/meshes") / f"{output_name}-{i}.ply"
+        )
+
+
 def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """Calculate the ARAP energy of a trimesh polyline deformation."""
     if len(args.mesh_paths) < 2:

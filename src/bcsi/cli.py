@@ -221,6 +221,26 @@ def get_parser() -> argparse.ArgumentParser:
     )
     screenshot_polyline.set_defaults(outfile=True, func_name="screenshot_polyline")
 
+    save_polyline_meshes = subparsers.add_parser(
+        "save-polyline-meshes",
+        parents=[base_parser],
+        help="save rendered meshes from a BPS polyline deformation",
+        description="Save rendered meshes from a BPS polyline deformation.",
+    )
+    save_polyline_meshes.add_argument(
+        "polyline_path", help="path to polyline file", type=pathlib.Path
+    )
+    save_polyline_meshes.add_argument(
+        "--resolution",
+        default=3,
+        type=int,
+        help="resolution with which to render blended chart surfaces (default: 3)",
+    )
+    save_polyline_meshes.add_argument(
+        "--num-frames", default=10, type=int, help="number of screenshots to take"
+    )
+    save_polyline_meshes.set_defaults(outfile=True, func_name="save_polyline_meshes")
+
     deform_bps = subparsers.add_parser(
         "deform-bps",
         help="create a deformation from a BPS sequence",
