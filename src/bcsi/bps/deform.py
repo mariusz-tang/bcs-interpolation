@@ -402,6 +402,11 @@ class Polyline:
         """Initialize a polyline deformation from a set of keyframes."""
         self.frames = frames
 
+        # Prevent repeated calculation when calculating energy.
+        for frame in self.frames[1:]:
+            frame.triangle_onering_flips = self.frames[0].triangle_onering_flips
+            frame.triangle_onering_indices = self.frames[0].triangle_onering_indices
+
     def get_frame(self, t: float) -> BlendedPolynomialSurface:
         """Get the frame at time t.
 
