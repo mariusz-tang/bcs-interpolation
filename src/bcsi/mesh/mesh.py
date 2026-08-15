@@ -119,6 +119,7 @@ class TriangleMesh:
         self.__dict__.pop("vertex_normals", None)
         self.__dict__.pop("triangle_areas", None)
         self.__dict__.pop("vertex_areas", None)
+        self.__dict__.pop("adjacency_list", None)
 
     @cached_property
     def triangle_areas(self) -> torch.Tensor:
@@ -192,7 +193,7 @@ class TriangleMesh:
         mesh_o3d.vertex_colors = o3d.utility.Vector3dVector(self.vertex_colors.numpy())
         return mesh_o3d
 
-    @property
+    @cached_property
     def adjacency_list(self) -> list[set[int]]:
         """List of vertex adjacency sets."""
         mesh = self.open3d_legacy()
