@@ -353,6 +353,22 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
     io.write_polyline(polyline, io.output_dir("polylines") / f"{output_name}.polyline")
 
 
+def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
+    """Calculate the ARAP energy of a trimesh polyline deformation."""
+    if len(args.mesh_paths) < 2:
+        raise ValueError("must have at least two meshes")
+
+    meshes = [io.read_mesh(path) for path in args.mesh_paths]
+    polyline = mesh.deform.Polyline(*meshes)
+    energy_dist = polyline.energy_distribution(args.num_frames)
+    torch.save(
+        energy_dist,
+        io.output_dir("energy-distributions")
+        / f"{output_name}-trimesh-{args.num_frames}f.pt",
+    )
+    print(energy_dist.sum().item())
+
+
 def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """Calculate the ARAP energy of a BPS polyline deformation.
 

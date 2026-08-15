@@ -247,6 +247,25 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
+    trimesh_deformation_energy = subparsers.add_parser(
+        "deformation-energy-trimesh",
+        help="calculate the energy from a linear trimesh deformation",
+        description="Calculate the energy from a linear trimesh deformation.",
+        parents=[base_parser],
+    )
+    trimesh_deformation_energy.add_argument(
+        "mesh_paths", type=pathlib.Path, nargs="+", help="paths to keyframe meshes"
+    )
+    trimesh_deformation_energy.add_argument(
+        "--num-frames",
+        type=int,
+        default=15,
+        help="number of frames at which to evaluate the ARAP metric (default: 15)",
+    )
+    trimesh_deformation_energy.set_defaults(
+        outfile=True, func_name="trimesh_deformation_energy"
+    )
+
     deformation_energy = subparsers.add_parser(
         "deformation-energy",
         help="calculate the energy from a BPS deformation",
