@@ -65,6 +65,8 @@ def write_polyline(polyline: bps.deform.Polyline, path: pathlib.Path) -> None:
                 "degree": bps_.degree,
                 "global_scale": bps_.global_scale,
                 "beta": bps_.beta,
+                "onering_flips": bps_.triangle_onering_flips,
+                "onering_indices": bps_.triangle_onering_indices,
             }
         )
 
@@ -77,15 +79,16 @@ def read_polyline(path: pathlib.Path) -> bps.deform.Polyline:
     data = torch.load(path)
     frames = []
     for bps_data in data:
-        frames.append(
-            bps.BlendedPolynomialSurface(
-                mesh.TriangleMesh(bps_data["vertices"], bps_data["triangles"]),
-                bps_data["degree"],
-                bps_data["global_scale"],
-                bps_data["coefficients"],
-                bps_data["beta"],
-            )
+        bps_ = bps.BlendedPolynomialSurface(
+            mesh.TriangleMesh(bps_data["vertices"], bps_data["triangles"]),
+            bps_data["degree"],
+            bps_data["global_scale"],
+            bps_data["coefficients"],
+            bps_data["beta"],
         )
+        bps_.triangle_onering_flips = bps_data["onering_flips"]
+        bps_.triangle_onering_indices = bps_data["onering_indices"]
+        frames.append(bps_)
     return bps.deform.Polyline(*frames)
 
 
