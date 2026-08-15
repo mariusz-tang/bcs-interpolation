@@ -81,7 +81,7 @@ def energy_distributions(
         cumsum = torch.zeros(num_frames + 1)
         cumsum[1:] = dist.cumsum(0)
         cumulative.plot(torch.linspace(0, 1, num_frames + 1), cumsum, label=label)
-        nominal.plot(torch.linspace(0, 1, num_frames), dist / num_frames)
+        nominal.plot(torch.linspace(0, 1, num_frames), dist * num_frames)
 
     fig.legend()
     return fig
