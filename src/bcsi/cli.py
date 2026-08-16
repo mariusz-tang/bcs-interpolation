@@ -241,6 +241,28 @@ def get_parser() -> argparse.ArgumentParser:
     )
     save_polyline_meshes.set_defaults(outfile=True, func_name="save_polyline_meshes")
 
+    save_trimesh_polyline_meshes = subparsers.add_parser(
+        "save-trimesh-polyline-meshes",
+        parents=[base_parser],
+        help="save meshes from a trimesh polyline deformation",
+        description="Save meshes from a trimesh polyline deformation.",
+    )
+    save_trimesh_polyline_meshes.add_argument(
+        "mesh_paths",
+        help="paths to the polyline keyframes",
+        nargs="+",
+        type=pathlib.Path,
+    )
+    save_trimesh_polyline_meshes.add_argument(
+        "--num-frames",
+        default=10,
+        type=int,
+        help="number of screenshots to take (default: 10)",
+    )
+    save_trimesh_polyline_meshes.set_defaults(
+        outfile=True, func_name="save_trimesh_polyline_meshes"
+    )
+
     deform_bps = subparsers.add_parser(
         "deform-bps",
         help="create a deformation from a BPS sequence",

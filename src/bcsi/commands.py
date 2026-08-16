@@ -366,6 +366,19 @@ def save_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
         )
 
 
+def save_trimesh_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
+    """Save a sequence of meshes corresponding to a trimesh polyline."""
+    meshes = [io.read_mesh(path) for path in args.mesh_paths]
+    polyline = mesh.deform.Polyline(*meshes)
+
+    for i in range(args.num_frames):
+        mesh_ = polyline.get_frame(i / (args.num_frames - 1))
+        io.write_mesh(
+            mesh_,
+            io.output_dir("polylines/trimesh-meshes") / f"{output_name}-{i}.ply",
+        )
+
+
 def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """Calculate the ARAP energy of a trimesh polyline deformation."""
     if len(args.mesh_paths) < 2:
