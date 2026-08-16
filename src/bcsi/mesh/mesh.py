@@ -183,14 +183,17 @@ class TriangleMesh:
         triangles = torch.cat([self.triangles, other.triangles + self.num_vertices])
         return TriangleMesh(vertices, triangles)
 
-    def open3d_legacy(self) -> o3d.geometry.TriangleMesh:
+    def open3d_legacy(self, transfer_colors: bool = True) -> o3d.geometry.TriangleMesh:
         """Convert to legacy open3d triangle mesh."""
         mesh_o3d = o3d.geometry.TriangleMesh(
             o3d.utility.Vector3dVector(np.asarray(self.vertices.detach())),
             o3d.utility.Vector3iVector(np.asarray(self.triangles.detach())),
         )
         mesh_o3d.compute_vertex_normals()
-        mesh_o3d.vertex_colors = o3d.utility.Vector3dVector(self.vertex_colors.numpy())
+        if transfer_colors:
+            mesh_o3d.vertex_colors = o3d.utility.Vector3dVector(
+                self.vertex_colors.numpy()
+            )
         return mesh_o3d
 
     @cached_property
@@ -244,7 +247,7 @@ def _tensor(
     return torch.tensor(np.asarray(a))
 
 
-def show(mesh: TriangleMesh) -> None:
+def show(mesh: TriangleMesh, show_colors: bool = True) -> None:
     """Visualize a mesh using open3d's visualizer."""
-    mesh_o3d = mesh.open3d_legacy()
+    mesh_o3d = mesh.open3d_legacy(transfer_colors=show_colors)
     o3d.visualization.draw_geometries([mesh_o3d])

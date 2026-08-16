@@ -36,7 +36,7 @@ def create_submesh(args: argparse.Namespace, output_name: str) -> None:
     child = mesh.submesh.create(mesh_, args.scale)
     io.write_mesh(child, io.output_dir() / f"{output_name}-submesh.ply")
     if args.visualize:
-        mesh.show(mesh_)
+        mesh.show(child, show_colors=False)
 
 
 def submesh_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
