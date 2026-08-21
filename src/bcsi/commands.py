@@ -321,7 +321,17 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         for p in args.frame_mesh_paths
     ]
 
-    bps_list = _construct_bps_list_individual(reference_pair, frame_pairs, args)
+    # Construct BPSs for each polyline vertex.
+    if args.coefficient_transfer_method == "use-reference":
+        bps_list = _construct_bps_list_from_reference(reference_pair, frame_pairs, args)
+    elif args.coefficient_transfer_method == "mean-simple":
+        bps_list = _construct_bps_list_from_mean(reference_pair, frame_pairs, args)
+    elif args.coefficient_transfer_method == "mean-weighted":
+        bps_list = _construct_bps_list_from_weighted_mean(
+            reference_pair, frame_pairs, args
+        )
+    else:
+        bps_list = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
     if args.method == "linear":
         keyframes = bps_list
@@ -340,7 +350,8 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
         )
         io.write_polyline(
             polyline_proxy_only,
-            io.output_dir("polylines") / f"{output_name}-proxy-only.polyline",
+            io.output_dir("polylines")
+            / f"{output_name}-{args.coefficient_transfer_method}-proxy-only.polyline",
         )
         polyline = bps.deform.optimize_bps_arap_coefficients_only(
             bps_list[0],
@@ -350,7 +361,11 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
             polyline_proxy_only.get_frame(0.5),
         )
 
-    io.write_polyline(polyline, io.output_dir("polylines") / f"{output_name}.polyline")
+    io.write_polyline(
+        polyline,
+        io.output_dir("polylines")
+        / f"{output_name}-{args.coefficient_transfer_method}.polyline",
+    )
 
 
 def save_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:

@@ -287,6 +287,12 @@ def get_parser() -> argparse.ArgumentParser:
         default="linear",
         help="interpolation method (default: linear)",
     )
+    deform_bps.add_argument(
+        "--coefficient-transfer-method",
+        help="method of coefficient transfer between frames (default: individual)",
+        choices=["individual", "use-reference", "mean-simple", "mean-weighted"],
+        default="individual",
+    )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
     trimesh_deformation_energy = subparsers.add_parser(
