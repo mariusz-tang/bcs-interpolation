@@ -337,10 +337,10 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         keyframes = bps_list
         polyline = bps.deform.Polyline(*keyframes)
     elif args.method == "arap":
-        arap_resolution = 0
+        # arap_resolution = 0
         arap_num_frames = 3
         polyline = bps.deform.optimize_bps_arap(
-            bps_list[0], bps_list[1], arap_resolution, arap_num_frames
+            bps_list[0], bps_list[1], args.resolution, arap_num_frames
         )
     elif args.method == "arap-alternating":
         arap_resolution = 0
@@ -357,7 +357,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             bps_list[0],
             bps_list[1],
             args.resolution,
-            2,
+            3,
             polyline_proxy_only.get_frame(0.5),
         )
     elif args.method == "progressive":
