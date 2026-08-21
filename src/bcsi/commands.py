@@ -303,7 +303,7 @@ def screenshot_polyline(args: argparse.Namespace, output_name: str) -> None:
         )
 
 
-def deform_bps(args: argparse.Namespace, output_name: str) -> None:
+def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C901
     """Construct a BPS deformation and save the resulting polyline."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:
         raise ValueError(f"expected at least 2 frames but received {num_frames}")
@@ -360,6 +360,17 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:
             2,
             polyline_proxy_only.get_frame(0.5),
         )
+    elif args.method == "progressive":
+        polyline = bps.deform.optimize_bps_arap_proxy_only(
+            bps_list[0], bps_list[1], 0, 3
+        )
+        for resolution in range(args.resolution):
+            polyline = bps.deform.optimize_bps_arap_coefficients_only(
+                bps_list[0], bps_list[1], resolution, 3, polyline.get_frame(0.5)
+            )
+            polyline = bps.deform.optimize_bps_arap_proxy_only(
+                bps_list[0], bps_list[1], resolution, 3, polyline.get_frame(0.5)
+            )
 
     io.write_polyline(
         polyline,
