@@ -20,7 +20,7 @@ def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
     surface_rendered = bps.render.surface(surface, args.resolution)
 
     if args.visualize:
-        mesh.show(surface_rendered)
+        mesh.show(surface_rendered, show_colors=False)
     io.write_mesh(surface_rendered, output_dir / "bps.ply")
 
 
