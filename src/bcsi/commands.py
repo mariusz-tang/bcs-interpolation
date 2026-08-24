@@ -337,16 +337,12 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         keyframes = bps_list
         polyline = bps.deform.Polyline(*keyframes)
     elif args.method == "arap":
-        # arap_resolution = 0
-        arap_num_frames = 3
         polyline = bps.deform.optimize_bps_arap(
-            bps_list[0], bps_list[1], args.resolution, arap_num_frames
+            bps_list[0], bps_list[1], args.resolution, args.num_frames
         )
     elif args.method == "arap-alternating":
-        arap_resolution = 0
-        arap_num_frames = 3
         polyline_proxy_only = bps.deform.optimize_bps_arap_proxy_only(
-            bps_list[0], bps_list[1], arap_resolution, arap_num_frames
+            bps_list[0], bps_list[1], 0, args.num_frames
         )
         io.write_polyline(
             polyline_proxy_only,
@@ -357,19 +353,27 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             bps_list[0],
             bps_list[1],
             args.resolution,
-            3,
+            args.num_frames,
             polyline_proxy_only.get_frame(0.5),
         )
     elif args.method == "progressive":
         polyline = bps.deform.optimize_bps_arap_proxy_only(
-            bps_list[0], bps_list[1], 0, 3
+            bps_list[0], bps_list[1], 0, args.num_frames
         )
         for resolution in range(args.resolution):
             polyline = bps.deform.optimize_bps_arap_coefficients_only(
-                bps_list[0], bps_list[1], resolution, 3, polyline.get_frame(0.5)
+                bps_list[0],
+                bps_list[1],
+                resolution,
+                args.num_frames,
+                polyline.get_frame(0.5),
             )
             polyline = bps.deform.optimize_bps_arap_proxy_only(
-                bps_list[0], bps_list[1], resolution, 3, polyline.get_frame(0.5)
+                bps_list[0],
+                bps_list[1],
+                resolution,
+                args.num_frames,
+                polyline.get_frame(0.5),
             )
 
     io.write_polyline(

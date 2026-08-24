@@ -293,6 +293,12 @@ def get_parser() -> argparse.ArgumentParser:
         choices=["individual", "use-reference", "mean-simple", "mean-weighted"],
         default="individual",
     )
+    deform_bps.add_argument(
+        "--num-frames",
+        type=int,
+        default="2",
+        help="number of frames at which to evaluate the metric, per segment",
+    )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
     trimesh_deformation_energy = subparsers.add_parser(
