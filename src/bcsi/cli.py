@@ -299,6 +299,12 @@ def get_parser() -> argparse.ArgumentParser:
         default="2",
         help="number of frames at which to evaluate the metric, per segment",
     )
+    deform_bps.add_argument(
+        "--optimization-algorithm",
+        choices=["newton-cg", "bfgs", "l-bfgs"],
+        default="newton-cg",
+        help="algorithm to use when optimizing intermediate BPS frames",
+    )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
     trimesh_deformation_energy = subparsers.add_parser(

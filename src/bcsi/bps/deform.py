@@ -487,6 +487,7 @@ def optimize_bps_arap(
     resolution: int = 0,
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
+    method: str = "newton-cg",
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
@@ -514,7 +515,7 @@ def optimize_bps_arap(
     x0 = torch.cat([init.proxy.vertices.flatten(), init.coefficients.flatten()])
 
     return _optimize_intermediate_frame(
-        start, finish, make_bps, x0, resolution, num_frames
+        start, finish, make_bps, x0, resolution, num_frames, method=method
     )
 
 
@@ -524,6 +525,7 @@ def optimize_bps_arap_proxy_only(
     resolution: int = 0,
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
+    method: str = "newton-cg",
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
@@ -550,7 +552,14 @@ def optimize_bps_arap_proxy_only(
     x0 = init.proxy.vertices.flatten()
 
     return _optimize_intermediate_frame(
-        start, finish, make_bps, x0, resolution, num_frames, xtol=1e-2
+        start,
+        finish,
+        make_bps,
+        x0,
+        resolution,
+        num_frames,
+        xtol=1e-2,
+        method=method,
     )
 
 
@@ -560,6 +569,7 @@ def optimize_bps_arap_coefficients_only(
     resolution: int = 0,
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
+    method: str = "newton-cg",
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
@@ -586,7 +596,7 @@ def optimize_bps_arap_coefficients_only(
     x0 = init.coefficients[..., 1:].flatten()
 
     return _optimize_intermediate_frame(
-        start, finish, make_bps, x0, resolution, num_frames
+        start, finish, make_bps, x0, resolution, num_frames, method=method
     )
 
 
@@ -598,6 +608,7 @@ def _optimize_intermediate_frame(
     resolution: int = 0,
     num_frames: int = 4,
     xtol: float = 1e-5,
+    method: str = "newton-cg",
 ) -> Polyline:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
@@ -622,7 +633,7 @@ def _optimize_intermediate_frame(
     result = torchmin.minimize(
         calc_energy,
         x0,
-        "newton-cg",
+        method,
         disp=True,
         options={"xtol": xtol},
     )

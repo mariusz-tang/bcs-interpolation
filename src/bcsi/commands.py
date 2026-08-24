@@ -338,11 +338,19 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         polyline = bps.deform.Polyline(*keyframes)
     elif args.method == "arap":
         polyline = bps.deform.optimize_bps_arap(
-            bps_list[0], bps_list[1], args.resolution, args.num_frames
+            bps_list[0],
+            bps_list[1],
+            args.resolution,
+            args.num_frames,
+            method=args.optimization_algorithm,
         )
     elif args.method == "arap-alternating":
         polyline_proxy_only = bps.deform.optimize_bps_arap_proxy_only(
-            bps_list[0], bps_list[1], 0, args.num_frames
+            bps_list[0],
+            bps_list[1],
+            0,
+            args.num_frames,
+            method=args.optimization_algorithm,
         )
         io.write_polyline(
             polyline_proxy_only,
@@ -355,10 +363,15 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             args.resolution,
             args.num_frames,
             polyline_proxy_only.get_frame(0.5),
+            method=args.optimization_algorithm,
         )
     elif args.method == "progressive":
         polyline = bps.deform.optimize_bps_arap_proxy_only(
-            bps_list[0], bps_list[1], 0, args.num_frames
+            bps_list[0],
+            bps_list[1],
+            0,
+            args.num_frames,
+            method=args.optimization_algorithm,
         )
         for resolution in range(args.resolution):
             polyline = bps.deform.optimize_bps_arap_coefficients_only(
@@ -367,6 +380,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
                 resolution,
                 args.num_frames,
                 polyline.get_frame(0.5),
+                method=args.optimization_algorithm,
             )
             polyline = bps.deform.optimize_bps_arap_proxy_only(
                 bps_list[0],
@@ -374,6 +388,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
                 resolution,
                 args.num_frames,
                 polyline.get_frame(0.5),
+                method=args.optimization_algorithm,
             )
 
     io.write_polyline(
