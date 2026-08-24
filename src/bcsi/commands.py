@@ -333,6 +333,11 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
     else:
         bps_list = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
+    output_path_base = (
+        f"{output_name}-{args.method}-{args.coefficient_transfer_method}"
+        f"-{args.optimization_algorithm}-r{args.resolution}-f{args.num_frames}"
+    )
+
     if args.method == "linear":
         keyframes = bps_list
         polyline = bps.deform.Polyline(*keyframes)
@@ -354,8 +359,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         )
         io.write_polyline(
             polyline_proxy_only,
-            io.output_dir("polylines")
-            / f"{output_name}-{args.coefficient_transfer_method}-proxy-only.polyline",
+            io.output_dir("polylines") / f"{output_path_base}-proxy-only.polyline",
         )
         polyline = bps.deform.optimize_bps_arap_coefficients_only(
             bps_list[0],
@@ -393,8 +397,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
 
     io.write_polyline(
         polyline,
-        io.output_dir("polylines")
-        / f"{output_name}-{args.coefficient_transfer_method}.polyline",
+        io.output_dir("polylines") / f"{output_path_base}.polyline",
     )
 
 
