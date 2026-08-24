@@ -1,51 +1,69 @@
-"""Conversion from deformation fields in BPS space to shape space.
+"""Blended polynomial surface deformations."""
 
-Deformations are assumed to be linear between frames.
-"""
-
-import math
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Sequence
 
 import torch
 import torchmin
 
-from bcsi import mesh
+from bcsi import bps, deform, mesh, metrics
+from bcsi.bps import BlendedPolynomialSurface, polynomial, render, triangle
 
-from . import BlendedPolynomialSurface, polynomial, render, triangle
+from . import polyline
+from .typing import EnergyFunction, Metric
 
 
-def energy(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
-    resolution: int,
-    num_frames: int = 2,
-    lamda: float = 1e-6,
-) -> torch.Tensor:
-    """Calculate BPS deformation energy.
+class Polyline(polyline.Polyline[bps.BlendedPolynomialSurface]):
+    """Blended polynomial surface polyline deformation."""
 
-    :param start: BPS at the start of the deformation.
-    :param finish: BPS at the end of the deformation.
-    :param resolution: resolution at which to render the BPS when calculating
-    shape-space metrics.
-    :param num_frames: the total number of frames at which to take the metric,
-    including `start` and `finish`. Must be at least 2.
-    """
-    if num_frames < 2:
-        raise ValueError(f"num_frames must be at least 2 but was {num_frames}")
+    def __init__(self, frames: Sequence[bps.BlendedPolynomialSurface]) -> None:
+        """Initialize a polyline deformation from a set of keyframes."""
+        super().__init__(frames)
+        for frame in self.frames[1:]:
+            frame.triangle_onering_flips = self.frames[0].triangle_onering_flips
+            frame.triangle_onering_indices = self.frames[0].triangle_onering_indices
 
-    total = torch.tensor(0).double()
+    @staticmethod
+    def _interpolate(
+        start: bps.BlendedPolynomialSurface,
+        finish: bps.BlendedPolynomialSurface,
+        t: float,
+    ) -> bps.BlendedPolynomialSurface:
+        dv_dt = finish.proxy.vertices - start.proxy.vertices
+        dcoeffs_dt = finish.coefficients - start.coefficients
 
-    current = mesh.arap.metric(*bps_to_shape_space(start, finish, 0, resolution), lamda)
-
-    for i in range(num_frames - 1):
-        t = (1 + i) / (num_frames - 1)
-        total += current
-        current = mesh.arap.metric(
-            *bps_to_shape_space(start, finish, t, resolution), lamda
+        # Construct frame BPS.
+        proxy = mesh.TriangleMesh(
+            start.proxy.vertices + t * dv_dt, start.proxy.triangles
         )
-        total += current
+        frame = bps.BlendedPolynomialSurface(
+            proxy,
+            start.degree,
+            start.global_scale,
+            start.coefficients + t * dcoeffs_dt,
+            start.beta,
+        )
 
-    return total / (num_frames - 1)
+        # Transfer computationally-expensive data.
+        frame.triangle_onering_flips = start.triangle_onering_flips
+        frame.triangle_onering_indices = start.triangle_onering_indices
+
+        return frame
+
+
+def energy_function(
+    metric: Metric,
+    resolution: int,
+) -> EnergyFunction[bps.BlendedPolynomialSurface]:
+    """Deformation energy function for a linear deformation between two BPSs."""
+
+    def energy(
+        start: bps.BlendedPolynomialSurface, finish: bps.BlendedPolynomialSurface
+    ) -> torch.Tensor:
+        return metric(*bps_to_shape_space(start, finish, 0, resolution)) + metric(
+            *bps_to_shape_space(start, finish, 1, resolution)
+        )
+
+    return energy
 
 
 def make_frame(
@@ -395,92 +413,6 @@ def _derivative_of_norm(v: torch.Tensor, v_prime: torch.Tensor) -> torch.Tensor:
     return torch.linalg.vecdot(v, v_prime)[..., None] / norm_v
 
 
-class Polyline:
-    """A piece-wise linear deformation between keyframes."""
-
-    def __init__(self, *frames: BlendedPolynomialSurface) -> None:
-        """Initialize a polyline deformation from a set of keyframes."""
-        self.frames = frames
-
-        # Prevent repeated calculation when calculating energy.
-        for frame in self.frames[1:]:
-            frame.triangle_onering_flips = self.frames[0].triangle_onering_flips
-            frame.triangle_onering_indices = self.frames[0].triangle_onering_indices
-
-    def get_frame(self, t: float) -> BlendedPolynomialSurface:
-        """Get the frame at time t.
-
-        t is clamped to [0, 1].
-        """
-        if t >= 1:
-            return self.frames[-1]
-
-        # Clamp t from below and scale to the number of segments.
-        t = max(0, t) * self.num_segments
-
-        # Find the relevant linear segment.
-        segment_start = math.floor(t)
-        segment_progress = t % 1
-        return make_frame(
-            self.frames[segment_start], self.frames[segment_start + 1], segment_progress
-        )
-
-    def segments(
-        self,
-    ) -> Iterable[tuple[BlendedPolynomialSurface, BlendedPolynomialSurface]]:
-        """Return an iterable over the left and right endpoints of each segment."""
-        for i in range(self.num_segments):
-            yield self.frames[i], self.frames[i + 1]
-
-    @property
-    def num_segments(self) -> int:
-        """The number of segments in this polyline."""
-        return len(self.frames) - 1
-
-    def energy_distribution(
-        self, resolution: int, num_frames: int = 2, lamda: float = 1e-6
-    ) -> torch.Tensor:
-        """Get the energy distribution of this deformation.
-
-        :param resolution: Number of times to subdivide before evaluating ARAP.
-        :param num_frames: Number of frames at which to evaluate the energy.
-        """
-        result = torch.zeros(num_frames - 1)
-        next_frame = self.frames[0]
-        for i in range(num_frames - 1):
-            frame = next_frame
-            next_frame = self.get_frame((i + 1) / (num_frames - 1))
-            result[i] = energy(frame, next_frame, resolution, lamda=lamda) * (
-                num_frames - 1
-            )
-
-        return result
-
-    def energy(
-        self, resolution: int, num_frames: int = 2, lamda: float = 1e-6
-    ) -> torch.Tensor:
-        """Get the energy of this deformation.
-
-        :param resolution: Number of times to subdivide before evaluating ARAP.
-        :param num_frames: Number of frames at which to evaluate the energy.
-        """
-        return self.energy_distribution(resolution, num_frames, lamda).sum()
-
-    def subdivide(self) -> "Polyline":
-        """Insert a keyframe at the midpoint of each segment.
-
-        Acts in-place and returns `self`.
-        """
-        new_frames = []
-        for lhs, rhs in self.segments():
-            new_frames.append(lhs)
-            new_frames.append(make_frame(lhs, rhs, 0.5))
-        new_frames.append(self.frames[-1])
-
-        self.frames = new_frames
-        return self
-
-
 def optimize_bps_arap(
     start: BlendedPolynomialSurface,
     finish: BlendedPolynomialSurface,
@@ -488,7 +420,7 @@ def optimize_bps_arap(
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> Polyline:
+) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     :param start: The start-point of the polyline.
@@ -526,7 +458,7 @@ def optimize_bps_arap_proxy_only(
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> Polyline:
+) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     This function optimizes the proxy only; the coefficients remain unchanged.
@@ -570,7 +502,7 @@ def optimize_bps_arap_coefficients_only(
     num_frames: int = 4,
     init: BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> Polyline:
+) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     This function optimizes the coefficients only; the proxy remains unchanged.
@@ -609,7 +541,7 @@ def _optimize_intermediate_frame(
     num_frames: int = 4,
     xtol: float = 1e-5,
     method: str = "newton-cg",
-) -> Polyline:
+) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     :param start: The start-point of the polyline.
@@ -626,7 +558,10 @@ def _optimize_intermediate_frame(
         bps = make_bps_func(x)
         bps.triangle_onering_flips = start.triangle_onering_flips
         bps.triangle_onering_indices = start.triangle_onering_indices
-        e = Polyline(start, bps, finish).energy(resolution, 2 * num_frames - 1)
+        e = deform.bps.Polyline([start, bps, finish]).symmetric_energy(
+            deform.bps.energy_function(metrics.arap_regularized, resolution),
+            2 * num_frames - 1,
+        )
         print(e.item())
         return e
 
@@ -639,4 +574,4 @@ def _optimize_intermediate_frame(
     )
     intermediate_frame = make_bps_func(result.x)
 
-    return Polyline(start, intermediate_frame, finish)
+    return deform.bps.Polyline([start, intermediate_frame, finish])

@@ -9,7 +9,7 @@ import pathlib
 
 import torch
 
-from bcsi import bps, io, mesh, plot, screenshot
+from bcsi import bps, deform, io, mesh, metrics, plot, screenshot
 
 
 def initialize_bps(args: argparse.Namespace, output_dir: pathlib.Path) -> None:
@@ -340,9 +340,9 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
 
     if args.method == "linear":
         keyframes = bps_list
-        polyline = bps.deform.Polyline(*keyframes)
+        polyline = deform.bps.Polyline(keyframes)
     elif args.method == "arap":
-        polyline = bps.deform.optimize_bps_arap(
+        polyline = deform.bps.optimize_bps_arap(
             bps_list[0],
             bps_list[1],
             args.resolution,
@@ -350,7 +350,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
     elif args.method == "arap-alternating":
-        polyline_proxy_only = bps.deform.optimize_bps_arap_proxy_only(
+        polyline_proxy_only = deform.bps.optimize_bps_arap_proxy_only(
             bps_list[0],
             bps_list[1],
             0,
@@ -361,7 +361,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             polyline_proxy_only,
             io.output_dir("polylines") / f"{output_path_base}-proxy-only.polyline",
         )
-        polyline = bps.deform.optimize_bps_arap_coefficients_only(
+        polyline = deform.bps.optimize_bps_arap_coefficients_only(
             bps_list[0],
             bps_list[1],
             args.resolution,
@@ -370,7 +370,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
     elif args.method == "progressive":
-        polyline = bps.deform.optimize_bps_arap_proxy_only(
+        polyline = deform.bps.optimize_bps_arap_proxy_only(
             bps_list[0],
             bps_list[1],
             0,
@@ -378,7 +378,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
         for resolution in range(args.resolution):
-            polyline = bps.deform.optimize_bps_arap_coefficients_only(
+            polyline = deform.bps.optimize_bps_arap_coefficients_only(
                 bps_list[0],
                 bps_list[1],
                 resolution,
@@ -386,7 +386,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
                 polyline.get_frame(0.5),
                 method=args.optimization_algorithm,
             )
-            polyline = bps.deform.optimize_bps_arap_proxy_only(
+            polyline = deform.bps.optimize_bps_arap_proxy_only(
                 bps_list[0],
                 bps_list[1],
                 resolution,
@@ -417,7 +417,7 @@ def save_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
 def save_trimesh_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
     """Save a sequence of meshes corresponding to a trimesh polyline."""
     meshes = [io.read_mesh(path) for path in args.mesh_paths]
-    polyline = mesh.deform.Polyline(*meshes)
+    polyline = deform.mesh.Polyline(meshes)
 
     for i in range(args.num_frames):
         mesh_ = polyline.get_frame(i / (args.num_frames - 1))
@@ -433,8 +433,10 @@ def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> No
         raise ValueError("must have at least two meshes")
 
     meshes = [io.read_mesh(path) for path in args.mesh_paths]
-    polyline = mesh.deform.Polyline(*meshes)
-    energy_dist = polyline.energy_distribution(args.num_frames)
+    polyline = deform.mesh.Polyline(meshes)
+    energy_dist = polyline.symmetric_energy_distribution(
+        deform.mesh.energy_function(metrics.arap_regularized), args.num_frames
+    )
     torch.save(
         energy_dist,
         io.output_dir("energy-distributions")
@@ -451,7 +453,10 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """
     polyline = io.read_polyline(args.polyline_path)
 
-    energy_dist = polyline.energy_distribution(args.resolution, args.num_frames)
+    energy_dist = polyline.symmetric_energy_distribution(
+        deform.bps.energy_function(metrics.arap_regularized, args.resolution),
+        args.num_frames,
+    )
     torch.save(
         energy_dist,
         io.output_dir("energy-distributions")

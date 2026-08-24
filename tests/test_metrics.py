@@ -1,8 +1,7 @@
 import pytest
 import torch
 
-from bcsi import mesh
-from bcsi.mesh import arap
+from bcsi import mesh, metrics
 
 
 @pytest.mark.parametrize(
@@ -23,7 +22,10 @@ def test_residue_zero_on_rigid_deformation_with_corresponding_rigid_component(
     c = rigid_component[None, 3:]
     deformation_field = k + torch.linalg.cross(c, p)
 
-    assert arap.residue(rigid_component, cube_mesh, deformation_field.reshape(-1)) == 0
+    assert (
+        metrics.arap_residue(rigid_component, cube_mesh, deformation_field.reshape(-1))
+        == 0
+    )
 
 
 @pytest.mark.parametrize(
@@ -44,7 +46,7 @@ def test_raw_zero_on_rigid_deformation(
     c = rigid_component[None, 3:]
     deformation_field = k + torch.linalg.cross(c, p)
 
-    assert arap.raw(cube_mesh, deformation_field.reshape(-1)) == pytest.approx(
+    assert metrics.arap(cube_mesh, deformation_field.reshape(-1)) == pytest.approx(
         0, abs=1e-5
     )
 
@@ -55,4 +57,4 @@ def test_l2() -> None:
     )
     deformation_field = torch.tensor([0, 0, 1, 0, 1, 0, 1, 0, 0]).double()
 
-    assert arap.l2(mesh_, deformation_field) == pytest.approx(0.5)
+    assert metrics.l2(mesh_, deformation_field) == pytest.approx(0.5)

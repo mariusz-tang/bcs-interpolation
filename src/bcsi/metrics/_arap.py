@@ -1,17 +1,13 @@
-"""As-rigid-as-possible shape space metric.
-
-As given in Geometric Modeling in Shape Space:
-https://graphics.stanford.edu/~niloy/research/docs/shape_space_sig_07.pdf
-"""
+"""As-rigid-as-possible shape space metric."""
 
 import torch
 
-from . import TriangleMesh
+from bcsi import mesh
 
 
 def residue(
     rigid_component: torch.Tensor,
-    mesh: TriangleMesh,
+    mesh: mesh.TriangleMesh,
     deformation_field: torch.Tensor,
 ) -> torch.Tensor:
     """Calculate the residue of a deformation field relative to a rigid deformation.
@@ -38,7 +34,7 @@ def residue(
 
 def _jacobian_of_residue(
     rigid_component: torch.Tensor,
-    mesh: TriangleMesh,
+    mesh: mesh.TriangleMesh,
     deformation_field: torch.Tensor,
 ) -> torch.Tensor:
     p = mesh.vertices
@@ -62,7 +58,7 @@ def _jacobian_of_residue(
 
 
 def _hessian_of_residue(
-    mesh: TriangleMesh,
+    mesh: mesh.TriangleMesh,
 ) -> torch.Tensor:
     p = mesh.vertices
 
@@ -83,7 +79,7 @@ def _hessian_of_residue(
     return hessian
 
 
-def raw(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
+def raw(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
     """Calculate the raw (before regularization) ARAP shape space metric.
 
     This is simply the minimum residue between the deformation field and rigid
@@ -106,16 +102,3 @@ def raw(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
         x = x - gamma * hess @ _jacobian_of_residue(x, mesh, deformation_field)
         if torch.linalg.vector_norm(x - x_prev) < 1e-6:
             return residue(x, mesh, deformation_field)
-
-
-def l2(mesh: TriangleMesh, deformation_field: torch.Tensor) -> torch.Tensor:
-    """Calculate the L2 shape space metric regularization term."""
-    plain_l2 = torch.linalg.norm(deformation_field.reshape(-1, 3), dim=-1)
-    return torch.sum(plain_l2 * mesh.vertex_areas)
-
-
-def metric(
-    mesh: TriangleMesh, deformation_field: torch.Tensor, lamda: float = 1e-6
-) -> torch.Tensor:
-    """Calculate the full, regularized ARAP metric."""
-    return raw(mesh, deformation_field) + lamda * l2(mesh, deformation_field)
