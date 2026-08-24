@@ -303,7 +303,7 @@ def screenshot_polyline(args: argparse.Namespace, output_name: str) -> None:
         )
 
 
-def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C901
+def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C901 (complexity)
     """Construct a BPS deformation and save the resulting polyline."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:
         raise ValueError(f"expected at least 2 frames but received {num_frames}")
