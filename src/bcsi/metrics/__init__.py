@@ -49,7 +49,7 @@ def aiap(mesh: mesh.TriangleMesh, deformation_field: torch.Tensor) -> torch.Tens
 def aiap_regularized(
     mesh: mesh.TriangleMesh, deformation_field: torch.Tensor, lamda: float = 1e-3
 ) -> torch.Tensor:
-    """Calculate the full, regularized ARAP metric."""
+    """Calculate the full, regularized AIAP metric."""
     return aiap(mesh, deformation_field) + lamda * l2(mesh, deformation_field)
 
 
