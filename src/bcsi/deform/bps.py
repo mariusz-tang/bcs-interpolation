@@ -5,8 +5,7 @@ from collections.abc import Callable, Sequence
 import torch
 import torchmin
 
-from bcsi import bps, deform, mesh, metrics
-from bcsi.bps import BlendedPolynomialSurface, polynomial, render, triangle
+from bcsi import bps, mesh, metrics
 
 from . import polyline
 from .typing import EnergyFunction, Metric
@@ -67,15 +66,15 @@ def energy_function(
 
 
 def make_frame(
-    start: BlendedPolynomialSurface, finish: BlendedPolynomialSurface, t: float
-) -> BlendedPolynomialSurface:
+    start: bps.BlendedPolynomialSurface, finish: bps.BlendedPolynomialSurface, t: float
+) -> bps.BlendedPolynomialSurface:
     """Construct an intermediate BPS by linear interpolation."""
     dv_dt = finish.proxy.vertices - start.proxy.vertices
     dcoeffs_dt = finish.coefficients - start.coefficients
 
     # Construct frame BPS.
     proxy = mesh.TriangleMesh(start.proxy.vertices + t * dv_dt, start.proxy.triangles)
-    frame = BlendedPolynomialSurface(
+    frame = bps.BlendedPolynomialSurface(
         proxy,
         start.degree,
         start.global_scale,
@@ -91,8 +90,8 @@ def make_frame(
 
 
 def bps_to_shape_space(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
     t: float,
     resolution: int,
 ) -> tuple[mesh.TriangleMesh, torch.Tensor]:
@@ -109,7 +108,7 @@ def bps_to_shape_space(
     """
     frame = make_frame(start, finish, t)
 
-    patch = render.triangle_patch(resolution)
+    patch = bps.render.triangle_patch(resolution)
     # Ignore the z coordinate, which is zero everywhere.
     patch_coordinates = patch.vertices[:, :2]
     # Calculate all vertex positions and flatten the result.
@@ -149,7 +148,7 @@ def bps_to_shape_space(
 def blended_patch_derivatives(
     dv_dt: torch.Tensor,
     dcoeffs_dt: torch.Tensor,
-    frame: BlendedPolynomialSurface,
+    frame: bps.BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Evaluate patch derivates between BPS meshes at specified vertices.
@@ -159,14 +158,14 @@ def blended_patch_derivatives(
     patches are substituted for their derivatives with respect to time.
     """
     unblended = unblended_patch_derivatives(dv_dt, dcoeffs_dt, frame, vertices)
-    blend_coefficients = triangle.blend_coefficients(vertices, frame.beta).double()
+    blend_coefficients = bps.triangle.blend_coefficients(vertices, frame.beta).double()
     return torch.einsum("tpvd,vp->tvd", unblended, blend_coefficients)
 
 
 def unblended_patch_derivatives(
     dv_dt: torch.Tensor,
     dcoeffs_dt: torch.Tensor,
-    frame: BlendedPolynomialSurface,
+    frame: bps.BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Evaluate patch derivates between BPS meshes at specified vertices.
@@ -176,7 +175,7 @@ def unblended_patch_derivatives(
     patches are substituted for their derivatives with respect to time.
     """
     x, y = frame.get_onering_coordinates(vertices)
-    basis = polynomial.basis(x, y, frame.degree)
+    basis = bps.polynomial.basis(x, y, frame.degree)
 
     origin_vertex_ids = frame.proxy.triangles
 
@@ -208,7 +207,7 @@ def unblended_patch_derivatives(
 
 def patch_derivatives_function(
     dcoeffs_dt: torch.Tensor,
-    frame: BlendedPolynomialSurface,
+    frame: bps.BlendedPolynomialSurface,
     vertices: torch.Tensor,
 ) -> torch.Tensor:
     """Get a function to evaluate patch derivates between BPS meshes.
@@ -225,7 +224,7 @@ def patch_derivatives_function(
     dcoeff_dt = dcoeffs_dt[origin_vertex_ids]
 
     x, y = frame.get_onering_coordinates(vertices)
-    basis = polynomial.basis(x, y, frame.degree)
+    basis = bps.polynomial.basis(x, y, frame.degree)
 
     # The einsum indices represent:
     # t: triangle
@@ -237,7 +236,7 @@ def patch_derivatives_function(
 
 
 def vertex_scales_derivative(
-    dv_dt: torch.Tensor, frame: BlendedPolynomialSurface
+    dv_dt: torch.Tensor, frame: bps.BlendedPolynomialSurface
 ) -> torch.Tensor:
     """Evaluate the rate of change of vertex scales over time.
 
@@ -414,13 +413,13 @@ def _derivative_of_norm(v: torch.Tensor, v_prime: torch.Tensor) -> torch.Tensor:
 
 
 def optimize_bps_arap(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
     resolution: int = 0,
     num_frames: int = 4,
-    init: BlendedPolynomialSurface | None = None,
+    init: bps.BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
+) -> polyline.Polyline[bps.BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     :param start: The start-point of the polyline.
@@ -433,11 +432,11 @@ def optimize_bps_arap(
     """
     num_vert_coeffs = start.proxy.vertices.numel()
 
-    def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
+    def make_bps(x: torch.Tensor) -> bps.BlendedPolynomialSurface:
         verts = x[:num_vert_coeffs].reshape(start.proxy.vertices.shape)
         coeffs = x[num_vert_coeffs:].reshape(start.coefficients.shape)
         proxy = mesh.TriangleMesh(verts, start.proxy.triangles)
-        return BlendedPolynomialSurface(
+        return bps.BlendedPolynomialSurface(
             proxy, start.degree, start.global_scale, coeffs, start.beta
         )
 
@@ -452,13 +451,13 @@ def optimize_bps_arap(
 
 
 def optimize_bps_arap_proxy_only(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
     resolution: int = 0,
     num_frames: int = 4,
-    init: BlendedPolynomialSurface | None = None,
+    init: bps.BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
+) -> polyline.Polyline[bps.BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     This function optimizes the proxy only; the coefficients remain unchanged.
@@ -474,10 +473,10 @@ def optimize_bps_arap_proxy_only(
     if init is None:
         init = make_frame(start, finish, 0.5)
 
-    def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
+    def make_bps(x: torch.Tensor) -> bps.BlendedPolynomialSurface:
         verts = x.reshape(start.proxy.vertices.shape)
         proxy = mesh.TriangleMesh(verts, start.proxy.triangles)
-        return BlendedPolynomialSurface(
+        return bps.BlendedPolynomialSurface(
             proxy, start.degree, start.global_scale, init.coefficients, start.beta
         )
 
@@ -496,13 +495,13 @@ def optimize_bps_arap_proxy_only(
 
 
 def optimize_bps_arap_coefficients_only(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
     resolution: int = 0,
     num_frames: int = 4,
-    init: BlendedPolynomialSurface | None = None,
+    init: bps.BlendedPolynomialSurface | None = None,
     method: str = "newton-cg",
-) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
+) -> polyline.Polyline[bps.BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     This function optimizes the coefficients only; the proxy remains unchanged.
@@ -518,10 +517,10 @@ def optimize_bps_arap_coefficients_only(
     if init is None:
         init = make_frame(start, finish, 0.5)
 
-    def make_bps(x: torch.Tensor) -> BlendedPolynomialSurface:
+    def make_bps(x: torch.Tensor) -> bps.BlendedPolynomialSurface:
         coeffs = torch.zeros_like(start.coefficients)
         coeffs[..., 1:] = x.reshape(start.coefficients[..., 1:].shape)
-        return BlendedPolynomialSurface(
+        return bps.BlendedPolynomialSurface(
             init.proxy, start.degree, start.global_scale, coeffs, start.beta
         )
 
@@ -533,15 +532,15 @@ def optimize_bps_arap_coefficients_only(
 
 
 def _optimize_intermediate_frame(
-    start: BlendedPolynomialSurface,
-    finish: BlendedPolynomialSurface,
-    make_bps_func: Callable[[torch.Tensor], BlendedPolynomialSurface],
+    start: bps.BlendedPolynomialSurface,
+    finish: bps.BlendedPolynomialSurface,
+    make_bps_func: Callable[[torch.Tensor], bps.BlendedPolynomialSurface],
     x0: torch.Tensor,
     resolution: int = 0,
     num_frames: int = 4,
     xtol: float = 1e-5,
     method: str = "newton-cg",
-) -> deform.polyline.Polyline[BlendedPolynomialSurface]:
+) -> polyline.Polyline[bps.BlendedPolynomialSurface]:
     """Find a two-segment polyline to connect two BPSs using the ARAP metric.
 
     :param start: The start-point of the polyline.
@@ -558,8 +557,8 @@ def _optimize_intermediate_frame(
         bps = make_bps_func(x)
         bps.triangle_onering_flips = start.triangle_onering_flips
         bps.triangle_onering_indices = start.triangle_onering_indices
-        e = deform.bps.Polyline([start, bps, finish]).symmetric_energy(
-            deform.bps.energy_function(metrics.arap_regularized, resolution),
+        e = Polyline([start, bps, finish]).symmetric_energy(
+            energy_function(metrics.arap_regularized, resolution),
             2 * num_frames - 1,
         )
         print(e.item())
@@ -574,4 +573,4 @@ def _optimize_intermediate_frame(
     )
     intermediate_frame = make_bps_func(result.x)
 
-    return deform.bps.Polyline([start, intermediate_frame, finish])
+    return Polyline([start, intermediate_frame, finish])
