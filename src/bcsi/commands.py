@@ -342,7 +342,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         keyframes = bps_list
         polyline = deform.bps.Polyline(keyframes)
     elif args.method == "arap":
-        polyline = deform.bps.optimize_bps_arap(
+        polyline = deform.optimize.bps_arap(
             bps_list[0],
             bps_list[1],
             args.resolution,
@@ -350,7 +350,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
     elif args.method == "arap-alternating":
-        polyline_proxy_only = deform.bps.optimize_bps_arap_proxy_only(
+        polyline_proxy_only = deform.optimize.bps_arap_proxy_only(
             bps_list[0],
             bps_list[1],
             0,
@@ -361,7 +361,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             polyline_proxy_only,
             io.output_dir("polylines") / f"{output_path_base}-proxy-only.polyline",
         )
-        polyline = deform.bps.optimize_bps_arap_coefficients_only(
+        polyline = deform.optimize.bps_arap_coefficients_only(
             bps_list[0],
             bps_list[1],
             args.resolution,
@@ -370,7 +370,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
     elif args.method == "progressive":
-        polyline = deform.bps.optimize_bps_arap_proxy_only(
+        polyline = deform.optimize.bps_arap_proxy_only(
             bps_list[0],
             bps_list[1],
             0,
@@ -378,7 +378,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             method=args.optimization_algorithm,
         )
         for resolution in range(args.resolution):
-            polyline = deform.bps.optimize_bps_arap_coefficients_only(
+            polyline = deform.optimize.bps_arap_coefficients_only(
                 bps_list[0],
                 bps_list[1],
                 resolution,
@@ -386,7 +386,7 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
                 polyline.get_frame(0.5),
                 method=args.optimization_algorithm,
             )
-            polyline = deform.bps.optimize_bps_arap_proxy_only(
+            polyline = deform.optimize.bps_arap_proxy_only(
                 bps_list[0],
                 bps_list[1],
                 resolution,
