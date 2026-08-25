@@ -117,13 +117,12 @@ def bps_arap_coefficients_only(
         init = deform_bps.make_frame(start, finish, 0.5)
 
     def make_bps(x: torch.Tensor) -> bps.BlendedPolynomialSurface:
-        coeffs = torch.zeros_like(start.coefficients)
-        coeffs[..., 1:] = x.reshape(start.coefficients[..., 1:].shape)
+        coeffs = x.reshape(start.coefficients.shape)
         return bps.BlendedPolynomialSurface(
             init.proxy, start.degree, start.global_scale, coeffs, start.beta
         )
 
-    x0 = init.coefficients[..., 1:].flatten()
+    x0 = init.coefficients.flatten()
 
     return _optimize_intermediate_frame(
         start, finish, make_bps, x0, resolution, num_frames, method=method
