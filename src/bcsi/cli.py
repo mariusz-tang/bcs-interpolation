@@ -349,7 +349,7 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deformation_energy.add_argument(
         "--metric",
-        choices=["arap", "aiap"],
+        choices=["arap", "aiap", "surface-area"],
         default="arap",
         help="metric to calculate (default: arap)",
     )

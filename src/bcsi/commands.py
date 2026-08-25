@@ -453,14 +453,26 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """
     polyline = io.read_polyline(args.polyline_path)
 
-    metric = (
-        metrics.arap_regularized if args.metric == "arap" else metrics.aiap_regularized
-    )
+    if args.metric in ["arap", "aiap"]:
+        metric = (
+            metrics.arap_regularized
+            if args.metric == "arap"
+            else metrics.aiap_regularized
+        )
+        energy_dist = polyline.symmetric_energy_distribution(
+            deform.bps.energy_function(metric, args.resolution),
+            args.num_frames,
+        )
+    elif args.metric == "surface-area":
+        energy_dist = torch.zeros(args.num_frames)
+        for i in range(args.num_frames):
+            frame = polyline.get_frame(i / (args.num_frames - 1))
+            energy_dist[i] = (
+                bps.render.surface(frame, args.resolution)
+                .open3d_legacy()
+                .get_surface_area()
+            )
 
-    energy_dist = polyline.symmetric_energy_distribution(
-        deform.bps.energy_function(metric, args.resolution),
-        args.num_frames,
-    )
     print(energy_dist.sum().item())
     output_path = (
         io.output_dir("energy-distributions")
