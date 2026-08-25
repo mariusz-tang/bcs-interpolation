@@ -446,23 +446,28 @@ def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> No
 
 
 def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
-    """Calculate the ARAP energy of a BPS polyline deformation.
+    """Calculate the energy of a BPS polyline deformation.
 
     The energy distribution tensors are saved in the `energy-distributions`
     output directory.
     """
     polyline = io.read_polyline(args.polyline_path)
 
+    metric = (
+        metrics.arap_regularized if args.metric == "arap" else metrics.aiap_regularized
+    )
+
     energy_dist = polyline.symmetric_energy_distribution(
-        deform.bps.energy_function(metrics.arap_regularized, args.resolution),
+        deform.bps.energy_function(metric, args.resolution),
         args.num_frames,
     )
-    torch.save(
-        energy_dist,
-        io.output_dir("energy-distributions")
-        / f"{output_name}-r{args.resolution}-{args.num_frames}f.pt",
-    )
     print(energy_dist.sum().item())
+    output_path = (
+        io.output_dir("energy-distributions")
+        / f"{output_name}-r{args.resolution}-{args.num_frames}f-{args.metric}.pt"
+    )
+    print(f"Writing energy distribution to {output_path}")
+    torch.save(energy_dist, output_path)
 
 
 def plot_deformation_energy(args: argparse.Namespace, output_name: str) -> None:

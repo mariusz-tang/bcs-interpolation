@@ -347,6 +347,12 @@ def get_parser() -> argparse.ArgumentParser:
         default=15,
         help="number of frames at which to evaluate the ARAP metric (default: 15)",
     )
+    deformation_energy.add_argument(
+        "--metric",
+        choices=["arap", "aiap"],
+        default="arap",
+        help="metric to calculate (default: arap)",
+    )
     deformation_energy.set_defaults(outfile=True, func_name="deformation_energy")
 
     plot_deformation_energy = subparsers.add_parser(
