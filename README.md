@@ -12,8 +12,8 @@ required dependencies with `uv sync`.
 
 [uv]: https://docs.astral.sh/uv/
 
-Optionally, generate open3d stubs using [pybind11-stubgen], which is included as a
-development dependency:
+Optionally, generate open3d stubs using [pybind11-stubgen], which is included as
+a development dependency:
 
 ```bash
 pybind11-stubgen open3d

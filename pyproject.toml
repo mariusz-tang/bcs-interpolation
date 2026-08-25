@@ -19,10 +19,11 @@ bcsi = "bcsi.cli:main"
 
 [dependency-groups]
 dev = [
-  "coverage>=7.14.1",
+  "coverage>=7.15.4",
   "pybind11-stubgen>=2.5.5",
-  "pytest>=9.0.3",
-  "ty>=0.0.44",
+  "pytest>=9.1.1",
+  "ruff>=0.16.4",
+  "ty>=0.0.74",
 ]
 
 [build-system]
