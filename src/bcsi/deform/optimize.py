@@ -162,6 +162,10 @@ def _optimize_intermediate_frame(
         print(e.item())
         return e
 
+    if method in ["bfgs", "l-bfgs"]:
+        # Adjust to match the different defaults.
+        xtol = xtol * 1e-3
+
     result = torchmin.minimize(
         calc_energy,
         x0,
