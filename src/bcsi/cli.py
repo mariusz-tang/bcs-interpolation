@@ -283,9 +283,17 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deform_bps.add_argument(
         "--method",
-        choices=["linear", "arap", "arap-alternating", "progressive"],
+        choices=[
+            "linear",
+            "full",
+            "alternating",
+            "progressive",
+        ],
         default="linear",
         help="interpolation method (default: linear)",
+    )
+    deform_bps.add_argument(
+        "--metric", choices=["arap", "aiap"], default="arap", help="metric to optimize"
     )
     deform_bps.add_argument(
         "--coefficient-transfer-method",
@@ -321,6 +329,12 @@ def get_parser() -> argparse.ArgumentParser:
         type=int,
         default=15,
         help="number of frames at which to evaluate the ARAP metric (default: 15)",
+    )
+    trimesh_deformation_energy.add_argument(
+        "--metric",
+        choices=["arap", "aiap", "surface-area"],
+        default="arap",
+        help="metric to calculate (default: arap)",
     )
     trimesh_deformation_energy.set_defaults(
         outfile=True, func_name="trimesh_deformation_energy"

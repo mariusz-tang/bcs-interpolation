@@ -5,15 +5,17 @@ from collections.abc import Callable
 import torch
 import torchmin
 
-from bcsi import bps, mesh, metrics
+from bcsi import bps, mesh
 
 from . import bps as deform_bps
 from . import polyline
+from .typing import Metric
 
 
-def bps_arap(
+def bps_full(
     start: bps.BlendedPolynomialSurface,
     finish: bps.BlendedPolynomialSurface,
+    metric: Metric,
     resolution: int = 0,
     num_frames: int = 4,
     init: bps.BlendedPolynomialSurface | None = None,
@@ -45,13 +47,14 @@ def bps_arap(
     x0 = torch.cat([init.proxy.vertices.flatten(), init.coefficients.flatten()])
 
     return _optimize_intermediate_frame(
-        start, finish, make_bps, x0, resolution, num_frames, method=method
+        start, finish, make_bps, x0, metric, resolution, num_frames, method=method
     )
 
 
-def bps_arap_proxy_only(
+def bps_proxy_only(
     start: bps.BlendedPolynomialSurface,
     finish: bps.BlendedPolynomialSurface,
+    metric: Metric,
     resolution: int = 0,
     num_frames: int = 4,
     init: bps.BlendedPolynomialSurface | None = None,
@@ -86,6 +89,7 @@ def bps_arap_proxy_only(
         finish,
         make_bps,
         x0,
+        metric,
         resolution,
         num_frames,
         xtol=1e-2,
@@ -93,9 +97,10 @@ def bps_arap_proxy_only(
     )
 
 
-def bps_arap_coefficients_only(
+def bps_coefficients_only(
     start: bps.BlendedPolynomialSurface,
     finish: bps.BlendedPolynomialSurface,
+    metric: Metric,
     resolution: int = 0,
     num_frames: int = 4,
     init: bps.BlendedPolynomialSurface | None = None,
@@ -125,7 +130,7 @@ def bps_arap_coefficients_only(
     x0 = init.coefficients.flatten()
 
     return _optimize_intermediate_frame(
-        start, finish, make_bps, x0, resolution, num_frames, method=method
+        start, finish, make_bps, x0, metric, resolution, num_frames, method=method
     )
 
 
@@ -134,6 +139,7 @@ def _optimize_intermediate_frame(
     finish: bps.BlendedPolynomialSurface,
     make_bps_func: Callable[[torch.Tensor], bps.BlendedPolynomialSurface],
     x0: torch.Tensor,
+    metric: Metric,
     resolution: int = 0,
     num_frames: int = 4,
     xtol: float = 1e-5,
@@ -156,7 +162,7 @@ def _optimize_intermediate_frame(
         bps.triangle_onering_flips = start.triangle_onering_flips
         bps.triangle_onering_indices = start.triangle_onering_indices
         e = deform_bps.Polyline([start, bps, finish]).symmetric_energy(
-            deform_bps.energy_function(metrics.arap_regularized, resolution),
+            deform_bps.energy_function(metric, resolution),
             2 * num_frames - 1,
         )
         print(e.item())
@@ -166,12 +172,16 @@ def _optimize_intermediate_frame(
         # Adjust to match the different defaults.
         xtol = xtol * 1e-3
 
+    options = {"xtol": xtol}
+    if method == "l-bfgs":
+        options["history_size"] = 20
+
     result = torchmin.minimize(
         calc_energy,
         x0,
         method,
         disp=True,
-        options={"xtol": xtol},
+        options=options,
     )
     intermediate_frame = make_bps_func(result.x)
 

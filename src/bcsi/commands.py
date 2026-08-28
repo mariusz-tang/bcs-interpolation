@@ -334,25 +334,31 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
         bps_list = _construct_bps_list_individual(reference_pair, frame_pairs, args)
 
     output_path_base = (
-        f"{output_name}-{args.method}-{args.coefficient_transfer_method}"
+        f"{output_name}-{args.metric}-{args.method}-{args.coefficient_transfer_method}"
         f"-{args.optimization_algorithm}-r{args.resolution}-f{args.num_frames}"
+    )
+
+    metric = (
+        metrics.arap_regularized if args.metric == "arap" else metrics.aiap_regularized
     )
 
     if args.method == "linear":
         keyframes = bps_list
         polyline = deform.bps.Polyline(keyframes)
-    elif args.method == "arap":
-        polyline = deform.optimize.bps_arap(
+    elif args.method == "full":
+        polyline = deform.optimize.bps_full(
             bps_list[0],
             bps_list[1],
+            metric,
             args.resolution,
             args.num_frames,
             method=args.optimization_algorithm,
         )
-    elif args.method == "arap-alternating":
-        polyline_proxy_only = deform.optimize.bps_arap_proxy_only(
+    elif args.method == "alternating":
+        polyline_proxy_only = deform.optimize.bps_proxy_only(
             bps_list[0],
             bps_list[1],
+            metric,
             0,
             args.num_frames,
             method=args.optimization_algorithm,
@@ -361,34 +367,38 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
             polyline_proxy_only,
             io.output_dir("polylines") / f"{output_path_base}-proxy-only.polyline",
         )
-        polyline = deform.optimize.bps_arap_coefficients_only(
+        polyline = deform.optimize.bps_coefficients_only(
             bps_list[0],
             bps_list[1],
+            metric,
             args.resolution,
             args.num_frames,
             polyline_proxy_only.get_frame(0.5),
             method=args.optimization_algorithm,
         )
     elif args.method == "progressive":
-        polyline = deform.optimize.bps_arap_proxy_only(
+        polyline = deform.optimize.bps_proxy_only(
             bps_list[0],
             bps_list[1],
+            metric,
             0,
             args.num_frames,
             method=args.optimization_algorithm,
         )
         for resolution in range(args.resolution):
-            polyline = deform.optimize.bps_arap_coefficients_only(
+            polyline = deform.optimize.bps_coefficients_only(
                 bps_list[0],
                 bps_list[1],
+                metric,
                 resolution,
                 args.num_frames,
                 polyline.get_frame(0.5),
                 method=args.optimization_algorithm,
             )
-            polyline = deform.optimize.bps_arap_proxy_only(
+            polyline = deform.optimize.bps_proxy_only(
                 bps_list[0],
                 bps_list[1],
+                metric,
                 resolution,
                 args.num_frames,
                 polyline.get_frame(0.5),
@@ -434,14 +444,29 @@ def trimesh_deformation_energy(args: argparse.Namespace, output_name: str) -> No
 
     meshes = [io.read_mesh(path) for path in args.mesh_paths]
     polyline = deform.mesh.Polyline(meshes)
-    energy_dist = polyline.symmetric_energy_distribution(
-        deform.mesh.energy_function(metrics.arap_regularized), args.num_frames
-    )
-    torch.save(
-        energy_dist,
+
+    if args.metric in ["arap", "aiap"]:
+        metric = (
+            metrics.arap_regularized
+            if args.metric == "arap"
+            else metrics.aiap_regularized
+        )
+        energy_dist = polyline.symmetric_energy_distribution(
+            deform.mesh.energy_function(metric),
+            args.num_frames,
+        )
+    elif args.metric == "surface-area":
+        energy_dist = torch.zeros(args.num_frames)
+        for i in range(args.num_frames):
+            frame = polyline.get_frame(i / (args.num_frames - 1))
+            energy_dist[i] = frame.open3d_legacy().get_surface_area()
+
+    output_path = (
         io.output_dir("energy-distributions")
-        / f"{output_name}-trimesh-{args.num_frames}f.pt",
+        / f"{output_name}-trimesh-{args.num_frames}f-{args.metric}.pt"
     )
+    print(f"Writing energy distribution to {output_path}")
+    torch.save(energy_dist, output_path)
     print(energy_dist.sum().item())
 
 
