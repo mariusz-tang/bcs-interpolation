@@ -386,6 +386,11 @@ def get_parser() -> argparse.ArgumentParser:
         nargs="+",
         help="labels to assign to each distribution",
     )
+    plot_deformation_energy.add_argument(
+        "--nominal-only",
+        action=argparse.BooleanOptionalAction,
+        help="plot only the nominal values with no title",
+    )
     plot_deformation_energy.set_defaults(
         outfile=True, func_name="plot_deformation_energy"
     )

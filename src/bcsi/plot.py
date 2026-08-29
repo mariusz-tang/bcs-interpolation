@@ -85,3 +85,27 @@ def energy_distributions(
 
     fig.legend()
     return fig
+
+
+def nominal_values(
+    values_distributions: list[torch.Tensor], labels: list[str]
+) -> plt.Figure:
+    """Plot nominal value distributions."""
+    if len(values_distributions) != len(labels):
+        raise ValueError(
+            f"number of distributions ({len(values_distributions)}) must match the "
+            f"number of labels ({len(labels)})"
+        )
+
+    fig = plt.figure()
+
+    axes = plt.axes()
+    axes.set_xlabel("t")
+
+    num_frames = values_distributions[0].numel()
+
+    for dist, label in zip(values_distributions, labels, strict=True):
+        axes.plot(torch.linspace(0, 1, num_frames), dist, label=label)
+
+    fig.legend()
+    return fig

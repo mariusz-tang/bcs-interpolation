@@ -510,9 +510,14 @@ def deformation_energy(args: argparse.Namespace, output_name: str) -> None:
 def plot_deformation_energy(args: argparse.Namespace, output_name: str) -> None:
     """Plot several deformation energy distributions against each other."""
     distributions = [torch.load(path) for path in args.distribution_paths]
-    fig = plot.energy_distributions(
-        distributions, args.labels or list(map(str, range(len(distributions))))
-    )
+    if args.nominal_only:
+        fig = plot.nominal_values(
+            distributions, args.labels or list(map(str, range(len(distributions))))
+        )
+    else:
+        fig = plot.energy_distributions(
+            distributions, args.labels or list(map(str, range(len(distributions))))
+        )
     io.write_figure(
         fig,
         io.output_dir("energy-distributions/plots")
