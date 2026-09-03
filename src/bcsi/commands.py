@@ -411,6 +411,23 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
     )
 
 
+def deform_trimesh(args: argparse.Namespace, output_name: str) -> None:
+    """Construct a mesh deformation and save the resulting intermediate frame."""
+    start = io.read_mesh(args.frame_mesh_paths[0])
+    finish = io.read_mesh(args.frame_mesh_paths[1])
+
+    metric = (
+        metrics.arap_regularized if args.metric == "arap" else metrics.aiap_regularized
+    )
+
+    output_path_base = f"{output_name}-{args.metric}-l-bfgs-f{args.num_frames}"
+    result = deform.optimize.triangle_mesh(start, finish, metric, args.num_frames)
+    io.write_mesh(
+        result,
+        io.output_dir("trimesh-polyline-midpoints") / f"{output_path_base}.ply",
+    )
+
+
 def save_polyline_meshes(args: argparse.Namespace, output_name: str) -> None:
     """Save a sequence of meshes corresponding to a polyline."""
     polyline = io.read_polyline(args.polyline_path)

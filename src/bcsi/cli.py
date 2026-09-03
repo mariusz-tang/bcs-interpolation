@@ -315,6 +315,29 @@ def get_parser() -> argparse.ArgumentParser:
     )
     deform_bps.set_defaults(outfile=True, func_name="deform_bps")
 
+    deform_trimesh = subparsers.add_parser(
+        "deform-trimesh",
+        help="create a deformation from a mesh sequence",
+        description="Create a deformation from a sequence of meshes.",
+        parents=[base_parser],
+    )
+    deform_trimesh.add_argument(
+        "frame_mesh_paths",
+        help="paths to two meshes, one at each end-point",
+        nargs=2,
+        type=pathlib.Path,
+    )
+    deform_trimesh.add_argument(
+        "--metric", choices=["arap", "aiap"], default="arap", help="metric to optimize"
+    )
+    deform_trimesh.add_argument(
+        "--num-frames",
+        type=int,
+        default="2",
+        help="number of frames at which to evaluate the metric, per segment",
+    )
+    deform_trimesh.set_defaults(outfile=True, func_name="deform_trimesh")
+
     trimesh_deformation_energy = subparsers.add_parser(
         "deformation-energy-trimesh",
         help="calculate the energy from a linear trimesh deformation",

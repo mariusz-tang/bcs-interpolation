@@ -8,6 +8,7 @@ import torchmin
 from bcsi import bps, mesh
 
 from . import bps as deform_bps
+from . import mesh as deform_mesh
 from . import polyline
 from .typing import Metric
 
@@ -174,7 +175,8 @@ def _optimize_intermediate_frame(
 
     options = {"xtol": xtol}
     if method == "l-bfgs":
-        options["history_size"] = 20
+        # options["history_size"] = 20
+        options["history_size"] = 50
 
     result = torchmin.minimize(
         calc_energy,
@@ -186,3 +188,41 @@ def _optimize_intermediate_frame(
     intermediate_frame = make_bps_func(result.x)
 
     return deform_bps.Polyline([start, intermediate_frame, finish])
+
+
+def triangle_mesh(
+    start: mesh.TriangleMesh,
+    finish: mesh.TriangleMesh,
+    metric: Metric,
+    num_frames: int = 2,
+    init: mesh.TriangleMesh | None = None,
+) -> mesh.TriangleMesh:
+    """Optimize a two-segment mesh polyline over a Riemmanian metric.
+
+    Returns the intermediate frame.
+    """
+    if init is None:
+        init = deform_mesh.Polyline([start, finish]).get_frame(0.5)
+
+    x0 = init.vertices
+
+    def make_mesh(x: torch.Tensor) -> mesh.TriangleMesh:
+        return mesh.TriangleMesh(x.reshape(-1, 3), init.triangles)
+
+    def calc_energy(x: torch.Tensor) -> torch.Tensor:
+        mesh_ = make_mesh(x)
+        e = deform_mesh.Polyline([start, mesh_, finish]).symmetric_energy(
+            deform_mesh.energy_function(metric),
+            2 * num_frames - 1,
+        )
+        print(e.item())
+        return e
+
+    result = torchmin.minimize(
+        calc_energy,
+        x0,
+        "l-bfgs",
+        disp=True,
+        options={"xtol": 1e-5, "history_size": 20},
+    )
+    return make_mesh(result.x)
