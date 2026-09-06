@@ -307,9 +307,10 @@ def deform_bps(args: argparse.Namespace, output_name: str) -> None:  # noqa: C90
     """Construct a BPS deformation and save the resulting polyline."""
     if (num_frames := len(args.frame_mesh_paths)) < 2:
         raise ValueError(f"expected at least 2 frames but received {num_frames}")
-    if args.method == "arap" and num_frames != 2:
+    if args.method != "linear" and num_frames != 2:
         raise ValueError(
-            f"must provide exactly 2 frames for arap method but received {num_frames}"
+            "must provide exactly 2 frames for non-linear method but received "
+            f"{num_frames}"
         )
 
     child = io.read_mesh(args.submesh_path)
