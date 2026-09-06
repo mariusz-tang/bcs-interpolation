@@ -247,7 +247,7 @@ def _tensor(
     return torch.tensor(np.asarray(a))
 
 
-def show(mesh: TriangleMesh, show_colors: bool = True) -> None:
+def show(mesh: TriangleMesh, show_colors: bool = True, **kwargs: Any) -> None:
     """Visualize a mesh using open3d's visualizer."""
     mesh_o3d = mesh.open3d_legacy(transfer_colors=show_colors)
-    o3d.visualization.draw_geometries([mesh_o3d])
+    o3d.visualization.draw_geometries([mesh_o3d], **kwargs)
