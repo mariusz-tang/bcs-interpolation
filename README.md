@@ -1,9 +1,14 @@
 # Blended Chart Surface Interpolation
 
-## Overview
+This is the code for my master's degree final project, which aims to extend
+[Blended Chart Surfaces](https://doi.org/10.48550/arXiv.2606.18069)
+to sequences with correspondences.
 
-This project aims to extend Blended Chart Surfaces to sequences with
-correspondences.
+**Note:** I have tried to keep the code clean and follow good practices, but,
+naturally, this became harder as the deadline approached. The CLI code is
+particularly bad, and there are quite a few flags which don't do anything.
+I do not intend on cleaning up or making significant changes after submission,
+although I may revisit the subject matter in future projects.
 
 ## Setup
 
